@@ -1,6 +1,6 @@
 @startuml
 package swiftport-backend as swiftport_backend  {
-    ' Bounded Context: Definición del contexto delimitado para el dominio de noticias
+    ' Bounded Context
     package template {
         package domain {
             package model {
@@ -22,9 +22,9 @@ package swiftport-backend as swiftport_backend  {
                 package queries {
                     ' Clases de tipo record que representan consultas para obtener datos del sistema
                 }
-                package services {
-                    ' Interfaces para los servicios que gestionan la lógica de negocio
-                }
+            }
+            package services {
+                ' Interfaces para los servicios que gestionan la lógica de negocio
             }
         }
         package infrastructure {
@@ -69,6 +69,11 @@ package swiftport-backend as swiftport_backend  {
             package entities {
                 class AuditableModel{
                     ' Entidad base que permite rastrear la auditoría de los cambios en los modelos
+                }
+            }
+            package valueobjects {
+                class tenantId {
+                    'ujum'
                 }
             }
         }
