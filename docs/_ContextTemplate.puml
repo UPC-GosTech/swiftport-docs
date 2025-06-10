@@ -1,0 +1,96 @@
+@startuml
+package swiftport-backend as swiftport_backend  {
+    ' Bounded Context: Definición del contexto delimitado para el dominio de noticias
+    package template {
+        package domain {
+            package model {
+                package aggregates {
+                    ' Contiene las clases principales que representan los agregados en el dominio
+                }
+                package entities{
+                    ' Aquí se definen las entidades que representan los objetos persistentes, pertenencen a aggregates.
+                }
+                package valueobjects {
+                    ' Contiene los objetos de valor que encapsulan atributos inmutables
+                }
+                package events {
+                    ' Definición de los eventos del dominio
+                }
+                package commands {
+                    ' Clases de tipo record (<<record>>) que representan comandos para modificar el estado del sistema
+                }
+                package queries {
+                    ' Clases de tipo record que representan consultas para obtener datos del sistema
+                }
+                package services {
+                    ' Interfaces para los servicios que gestionan la lógica de negocio
+                }
+            }
+        }
+        package infrastructure {
+            package persistence {
+                package jpa {
+                    ' Interfaces que implementan el patrón Repository para la persistencia de datos
+                }
+            }
+        }
+        package application {
+            package internal {
+                package commandservices {
+                    ' Clases que implementan las interfaces de servicios de comandos, ejecutando lógica de negocios relacionada con cambios de estado
+                }
+                package queryservices {
+                    ' Clases que implementan las interfaces de servicios de consultas, para la obtención de datos del sistema
+                }
+            }
+        }
+        package interfaces {
+            package rest {
+                package resources {
+                    ' Clases de tipo record que funcionan como DTOs (Data Transfer Objects), siguiendo los principios REST (se tratan como recursos)
+                }
+                package transform {
+                    ' Clases con métodos estáticos para mapear entre recursos, comandos, consultas o entidades
+                    ' Equivalente al patrón Assembler, puede ser denominado de esta manera
+                }
+                package controllers {
+                    ' Clases que exponen los endpoints REST del sistema, permitiendo la interacción con el cliente
+                }
+            }
+        }
+    }
+    package shared{
+        package domain.model{
+            package aggregates{
+                class AuditableAbstractAggregateRoot {
+                    ' Clase base para los agregados auditable, gestionando operaciones comunes
+                }
+            }
+            package entities {
+                class AuditableModel{
+                    ' Entidad base que permite rastrear la auditoría de los cambios en los modelos
+                }
+            }
+        }
+        package infrastructure.persistence.jpa.strategy {
+            class SnakeCasePhysicalNamingStrategy {
+                ' Estrategia de nombrado físico que convierte los identificadores a formato snake_case en la base de datos
+                + Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                - Identifier toSnakeCase(final Identifier identifier)
+                - Identifier toSnakeCase(final Identifier identifier)
+            }
+        }
+    }
+}
+
+package org.hibernate.boot.model.naming {
+    interface PhysicalNamingStrategy {
+        ' Interfaz para la estrategia de nombrado físico, utilizada para personalizar los nombres de las entidades en la base de datos
+    }
+}
+
+@enduml
