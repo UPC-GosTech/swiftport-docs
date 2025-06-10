@@ -1,0 +1,204 @@
+@startuml
+package swiftport-backend as swiftport_backend  {
+    ' Bounded Context: Definición del contexto delimitado para el dominio de noticias
+    package template {
+        package domain {
+            package model {
+                package aggregates {
+                    class Subscription {
+                        - String subscriptionId
+                        - TenantId tenantId
+                        - SubscriptionPlanId planId
+                        - LocalDateTime startDate
+                        - LocalDateTime endDate
+                        - SubscriptionStatus status
+                        + Subscription(String subscriptionId, tenantId tenantId, SubscriptionPlanId planId)
+                        + void activate()
+                        + void cancel()
+                        + void renew()
+                        + boolean validateUserLimit(int currentUsers)
+                        + boolean validateStorageLimit(int currentStorage)
+                        + boolean validateActivityLimit(int currentActivities)
+                    }
+
+                    class Plan {
+                        - String planId
+                        - String name
+                        - String description
+                        - Pricing price
+                        - int maxUsers
+                        - int maxStorage
+                        - int maxActivities
+                        + Plan(String planId, String name, String description, Pricing price, int maxUsers, int maxStorage, int maxActivities)
+                        + String getName()
+                        + int getMaxUsers()
+                        + int getMaxStorage()
+                        + int getMaxActivities()
+                    }
+                }
+
+                package valueobjects {
+                    class SubscriptionPlanId {
+                        - String id
+                        + SubscriptionPlanId(String id)
+                        + String getId()
+                    }
+
+                    class SubscriptionStatus {
+                        - String status
+                        + SubscriptionStatus(String status)
+                        + String getStatus()
+                    }
+
+                    class Pricing {
+                        - BigDecimal amount
+                        - String currency
+                        - String interval
+                        + Pricing(BigDecimal amount, String currency, String interval)
+                        + BigDecimal getAmount()
+                        + String getCurrency()
+                    }
+                }
+
+                package events {
+                    class SubscriptionCreated {
+                        - tenantId tenantId
+                        - String planId
+                        + SubscriptionCreated(tenantId tenantId, String planId)
+                    }
+
+                    class SubscriptionRenewed {
+                        - tenantId tenantId
+                        - String planId
+                        + SubscriptionRenewed(tenantId tenantId, String planId)
+                    }
+                }
+
+                package commands {
+                    class CreateSubscription {
+                        - tenantId tenantId
+                        - String planId
+                        + CreateSubscription(tenantId tenantId, String planId)
+                    }
+
+                    class RenewSubscription {
+                        - tenantId tenantId
+                        + RenewSubscription(tenantId tenantId)
+                    }
+                }
+
+                package queries {
+                    class GetSubscriptionByTenantId {
+                        - tenantId tenantId
+                        + GetSubscriptionByTenantId(tenantId tenantId)
+                    }
+
+                    class GetPlanLimits {
+                        - String planId
+                        + GetPlanLimits(String planId)
+                    }
+                }
+            }
+
+            package services {
+                interface SubscriptionService {
+                    + createSubscription(CreateSubscription command)
+                    + renewSubscription(RenewSubscription command)
+                    + cancelSubscription(tenantId tenantId)
+                    + validateSubscriptionLimits(tenantId tenantId)
+                }
+
+                interface BillingService {
+                    + processPayment(tenantId tenantId, Pricing price)
+                    + createStripeCustomer(tenantId tenantId)
+                    + createStripeSubscription(tenantId tenantId, String planId)
+                }
+            }
+
+            package repositories {
+                class SubscriptionRepository {
+                    + save(Subscription subscription)
+                    + findByTenantId(tenantId tenantId) : Subscription
+                    + findById(String subscriptionId) : Subscription
+                }
+
+                class PlanRepository {
+                    + save(Plan plan)
+                    + findById(String planId) : Plan
+                }
+
+                class StripeDataRepository {
+                    + saveStripeCustomer(tenantId tenantId, String stripeCustomerId)
+                    + saveStripeSubscription(tenantId tenantId, String stripeSubscriptionId)
+                    + getStripeCustomerId(tenantId tenantId) : String
+                    + getStripeSubscriptionId(tenantId tenantId) : String
+                }
+            }
+        }
+        package infrastructure {
+            package persistence {
+                package jpa {
+                    ' Interfaces que implementan el patrón Repository para la persistencia de datos
+                }
+            }
+        }
+        package application {
+            package internal {
+                package commandservices {
+                    ' Clases que implementan las interfaces de servicios de comandos, ejecutando lógica de negocios relacionada con cambios de estado
+                }
+                package queryservices {
+                    ' Clases que implementan las interfaces de servicios de consultas, para la obtención de datos del sistema
+                }
+            }
+        }
+        package interfaces {
+            package rest {
+                package resources {
+                    ' Clases de tipo record que funcionan como DTOs (Data Transfer Objects), siguiendo los principios REST (se tratan como recursos)
+                }
+                package transform {
+                    ' Clases con métodos estáticos para mapear entre recursos, comandos, consultas o entidades
+                    ' Equivalente al patrón Assembler, puede ser denominado de esta manera
+                }
+                package controllers {
+                    ' Clases que exponen los endpoints REST del sistema, permitiendo la interacción con el cliente
+                }
+            }
+        }
+    }
+    package shared{
+        package domain.model{
+            package aggregates{
+                class AuditableAbstractAggregateRoot {
+                    ' Clase base para los agregados auditable, gestionando operaciones comunes
+                }
+            }
+            package entities {
+                class AuditableModel{
+                    ' Entidad base que permite rastrear la auditoría de los cambios en los modelos
+                }
+            }
+        }
+        package infrastructure.persistence.jpa.strategy {
+            class SnakeCasePhysicalNamingStrategy {
+                ' Estrategia de nombrado físico que convierte los identificadores a formato snake_case en la base de datos
+                + Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                - Identifier toSnakeCase(final Identifier identifier)
+                - Identifier toSnakeCase(final Identifier identifier)
+            }
+        }
+    }
+}
+
+package org.hibernate.boot.model.naming {
+    interface PhysicalNamingStrategy {
+        ' Interfaz para la estrategia de nombrado físico, utilizada para personalizar los nombres de las entidades en la base de datos
+    }
+}
+
+@enduml
