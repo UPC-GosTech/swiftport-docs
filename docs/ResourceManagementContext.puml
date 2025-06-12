@@ -71,7 +71,7 @@ package swiftport-backend as swiftport_backend  {
                   + DateRange dateRange
                   + DateTime createdAt
                   --
-                  + static Reservation create(CreateReservationCommand cmd)
+                  + static Reservation create()
                   + boolean conflictsWith(DateRange other)
                 }
                }
