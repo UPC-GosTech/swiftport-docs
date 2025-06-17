@@ -37,7 +37,7 @@ package swiftport-backend as swiftport_backend  {
 
             class TaskProgramming <<Entity>> {
               + int Id
-              + ResourceReference resourceRef
+              + List<ResourceReference> resourceRefs
               + DateRange scheduledPeriod
               + ProgrammingStatus status
               + DateTime createdAt

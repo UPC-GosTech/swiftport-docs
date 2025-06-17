@@ -1,0 +1,145 @@
+@startuml
+package swiftport-backend as swiftport_backend {
+    ' Bounded Context
+    package execution {
+        package domain.model {
+          package aggregates {
+          'Al momento de creación asume los valores que tenía el taskProgramming por defecto
+            class Execution <<Aggregate>> {
+              + Long Id
+              + TaskProgrammingId taskProgrammingId
+              + TaskExecutionStatus status
+              + ExecutionTimeFrame executionTimeFrame
+              + List<IncidentReport> incidents
+              + List<EmployeeId> executedByEmployees // Lista de empleados que realmente ejecutaron la actividad
+              + List <EquipmentId> executedWithEquipments // Lista de equipments que realmente fueron utilizados
+              + String modificationsReason // Razón de la modificación, si hubo cambios
+              + TenantId tenantId
+              --
+              + void updateStatus(TaskExecutionStatus newStatus)
+              + void addIncident(IncidentReport incident)
+              + void addExecutedEmployee(Long employeeId) // Método para añadir empleado ejecutante
+              + void reportModifications(String reason) // Método para reportar modificación
+            }
+          }
+
+          package entities {
+            class IncidentReport <<Entity>> {
+              + Long Id
+              + Long executionId
+              + string description
+              + DateTime reportedAt
+              + IncidentSeverity severity
+              + TenantId tenantId
+              --
+              + void updateDescription(string newDescription)
+            }
+
+          }
+
+          package valueobjects {
+            class TaskExecutionStatus {
+              - enum { Pending, InProgress, Completed, Cancelled } value
+              + TaskExecutionStatus value()
+            }
+
+            class IncidentSeverity {
+              - enum { Low, Medium, High } value
+              + IncidentSeverity value()
+            }
+
+            class ExecutionTimeFrame {
+              - DateTime start
+              - DateTime end
+              + boolean overlaps(ExecutionTimeFrame other)
+              + void setStart(DateTime newStart)
+              + void setEnd(DateTime newEnd)
+            }
+            class TaskProgrammingId {
+                - Long taskProgrammingId
+            }
+            class EmployeeId {
+                - Long employeeId
+            }
+            class EquipmentId {
+                - Long equipmentId
+            }
+          }
+        }
+
+        package infrastructure {
+            package persistence {
+                package jpa {
+                    ' Interfaces que implementan el patrón Repository para la persistencia de datos
+                }
+            }
+        }
+
+        package application {
+            package internal {
+                package commandservices {
+                    ' Clases que implementan las interfaces de servicios de comandos, ejecutando lógica de negocios relacionada con cambios de estado
+                }
+                package queryservices {
+                    ' Clases que implementan las interfaces de servicios de consultas, para la obtención de datos del sistema
+                }
+            }
+        }
+
+        package interfaces {
+            package rest {
+                package resources {
+                    ' Clases de tipo record que funcionan como DTOs (Data Transfer Objects), siguiendo los principios REST (se tratan como recursos)
+                }
+                package transform {
+                    ' Clases con métodos estáticos para mapear entre recursos, comandos, consultas o entidades
+                    ' Equivalente al patrón Assembler, puede ser denominado de esta manera
+                }
+                package controllers {
+                    ' Clases que exponen los endpoints REST del sistema, permitiendo la interacción con el cliente
+                }
+            }
+        }
+    }
+
+    package shared {
+        package domain.model {
+            package aggregates {
+                class AuditableAbstractAggregateRoot {
+                    ' Clase base para los agregados auditable, gestionando operaciones comunes
+                }
+            }
+            package entities {
+                class AuditableModel {
+                    ' Entidad base que permite rastrear la auditoría de los cambios en los modelos
+                }
+            }
+            package valueobjects {
+                class TenantId {
+                    - Long value
+                    + TenantId(Long value)
+                    + Long getValue()
+                }
+            }
+        }
+        package infrastructure.persistence.jpa.strategy {
+            class SnakeCasePhysicalNamingStrategy {
+                ' Estrategia de nombrado físico que convierte los identificadores a formato snake_case en la base de datos
+                + Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                + Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
+                - Identifier toSnakeCase(final Identifier identifier)
+            }
+        }
+    }
+}
+
+package org.hibernate.boot.model.naming {
+    interface PhysicalNamingStrategy {
+        ' Interfaz para la estrategia de nombrado físico, utilizada para personalizar los nombres de las entidades en la base de datos
+    }
+}
+
+@enduml
