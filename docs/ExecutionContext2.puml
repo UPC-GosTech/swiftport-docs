@@ -1,0 +1,406 @@
+@startuml
+!define DARKBLUE #F0F8FF
+!define LIGHTBLUE #E0F2F7
+!define GREEN #E6FFE6
+!define ORANGE #FFFAF0
+!define GREY #F5F5F5
+!define RED #FFEEEE
+
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2F4F4F
+    BorderColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam package {
+    BackgroundColor DARKBLUE
+    BorderColor #1C405B
+    FontColor #1C405B
+}
+skinparam stereotype {
+    FontColor #6A5ACD
+}
+
+package "execution_context" {
+
+    package "application" {
+        package "internal" {
+            package "commandservices" {
+                class ExecutionCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - executionRepository: ExecutionRepository
+                    + ExecutionCommandServiceImpl(ExecutionRepository)
+                    + handle(CreateExecutionCommand): Long
+                    + handle(AddEmployeeIdToExecutionCommand): Long
+                    + handle(AddEquipmentIdToExecutionCommand): Long
+                    + handle(UpdateExecutionCommand): Optional<Execution>
+                    + handle(UpdateTaskExecutionStatusCommand): Optional<Execution>
+                }
+
+                class IncidentReportCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - incidentReportRepository: IncidentReportRepository
+                    - executionRepository: ExecutionRepository
+                    + IncidentReportCommandServiceImpl(IncidentReportRepository, ExecutionRepository)
+                    + handle(AddIncidentReportCommand): Long
+                    + handle(UpdateIncidentReportDescriptionCommand): Optional<IncidentReport>
+                }
+            }
+
+            package "queryservices" {
+                class ExecutionQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - executionRepository: ExecutionRepository
+                    + ExecutionQueryServiceImpl(ExecutionRepository)
+                    + handle(GetExecutionByIdQuery): Optional<Execution>
+                    + handle(GetAllExecutionsQuery): List<Execution>
+                }
+
+                class IncidentReportQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - incidentReportRepository: IncidentReportRepository
+                    + IncidentReportQueryServiceImpl(IncidentReportRepository)
+                    + handle(GetIncidentReportByIdQuery): Optional<IncidentReport>
+                    + handle(GetAllIncidentReportsQuery): List<IncidentReport>
+                    + handle(GetIncidentReportsByExecutionIdQuery): List<IncidentReport>
+                }
+            }
+        }
+    }
+
+    package "domain" {
+        package "model" {
+            package "aggregates" {
+                class Execution <<(A, #B0E0E6) AggregateRoot>> {
+                    - taskProgrammingId: TaskProgrammingId <<Embedded>>
+                    - taskExecutionStatus: TaskExecutionStatus <<Embedded>>
+                    - executionTimeFrame: ExecutionTimeFrame <<Embedded>>
+                    - incidents: List<IncidentReport>
+                    - employeeIdList: List<EmployeeId>
+                    - equipmentIdList: List<EquipmentId>
+                    - modificationReason: String
+                    - tenantId: TenantId <<Embedded>>
+                    + Execution()
+                    + Execution(Long, String, LocalDateTime, LocalDateTime, Long)
+                    + Execution(CreateExecutionCommand)
+                    + addEmployeeId(EmployeeId)
+                    + addEquipmentId(EquipmentId)
+                    + addIncidentReport(IncidentReport)
+                    + updateTaskExecutionStatus(String)
+                    + addModifications(UpdateExecutionCommand)
+                }
+            }
+
+            package "commands" {
+                class AddEmployeeIdToExecutionCommand <<(R, #FFDAB9) Record>> {
+                    + executionId: Long
+                    + employeeId: Long
+                }
+                class AddEquipmentIdToExecutionCommand <<(R, #FFDAB9) Record>> {
+                    + equipmentId: Long
+                    + executionId: Long
+                }
+                class AddIncidentReportCommand <<(R, #FFDAB9) Record>> {
+                    + executionId: Long
+                    + title: String
+                    + description: String
+                    + reportedAt: LocalDateTime
+                    + severity: String
+                    + tenantId: Long
+                }
+                class CreateExecutionCommand <<(R, #FFDAB9) Record>> {
+                    + taskProgrammingId: Long
+                    + taskExecutionStatus: String
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + tenantId: Long
+                }
+                class UpdateExecutionCommand <<(R, #FFDAB9) Record>> {
+                    + executionId: Long
+                    + reason: String
+                    + taskProgrammingId: Long
+                    + taskExecutionStatus: String
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                }
+                class UpdateIncidentReportDescriptionCommand <<(R, #FFDAB9) Record>> {
+                    + incidentReportId: Long
+                    + description: String
+                }
+                class UpdateTaskExecutionStatusCommand <<(R, #FFDAB9) Record>> {
+                    + executionId: Long
+                    + taskExecutionStatus: String
+                }
+            }
+
+            package "entities" {
+                class IncidentReport <<(E, #90EE90) Entity>> {
+                    - execution: Execution
+                    - title: String
+                    - description: String
+                    - reportedAt: LocalDateTime
+                    - severity: IncidentSeverity <<Embedded>>
+                    - tenantId: TenantId <<Embedded>>
+                    + IncidentReport()
+                    + IncidentReport(String, String, LocalDateTime, String, Long)
+                    + IncidentReport(AddIncidentReportCommand)
+                    + updateDescription(String)
+                }
+            }
+
+            package "queries" {
+                class GetAllExecutionsQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllIncidentReportsQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetExecutionByIdQuery <<(R, #FFFACD) Record>> {
+                    + id: Long
+                }
+                class GetIncidentReportByIdQuery <<(R, #FFFACD) Record>> {
+                    + id: Long
+                }
+                class GetIncidentReportsByExecutionIdQuery <<(R, #FFFACD) Record>> {
+                    + executionId: Long
+                }
+            }
+
+            package "valueobjects" {
+                class EmployeeId <<(V, #DDA0DD) ValueObject>> {
+                    + employeeId: Long
+                }
+                class EquipmentId <<(V, #DDA0DD) ValueObject>> {
+                    + equipmentId: Long
+                }
+                class ExecutionTimeFrame <<(V, #DDA0DD) ValueObject>> {
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + overlaps(ExecutionTimeFrame): boolean
+                }
+                enum IncidentSeverity <<(E, #D8BFD8) Enum>> {
+                    LOW
+                    MEDIUM
+                    HIGH
+                }
+                enum TaskExecutionStatus <<(E, #D8BFD8) Enum>> {
+                    PENDING
+                    IN_PROGRESS
+                    COMPLETED
+                    CANCELLED
+                }
+                class TaskProgrammingId <<(V, #DDA0DD) ValueObject>> {
+                    + taskProgrammingId: Long
+                }
+                class TenantId <<(V, #DDA0DD) ValueObject>> {
+                    + tenantId: Long
+                }
+            }
+
+            package "services" {
+                interface ExecutionCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateExecutionCommand): Long
+                    + handle(AddEmployeeIdToExecutionCommand): Long
+                    + handle(AddEquipmentIdToExecutionCommand): Long
+                    + handle(UpdateExecutionCommand): Optional<Execution>
+                    + handle(UpdateTaskExecutionStatusCommand): Optional<Execution>
+                }
+
+                interface ExecutionQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetExecutionByIdQuery): Optional<Execution>
+                    + handle(GetAllExecutionsQuery): List<Execution>
+                }
+
+                interface IncidentReportCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(AddIncidentReportCommand): Long
+                    + handle(UpdateIncidentReportDescriptionCommand): Optional<IncidentReport>
+                }
+
+                interface IncidentReportQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetIncidentReportByIdQuery): Optional<IncidentReport>
+                    + handle(GetAllIncidentReportsQuery): List<IncidentReport>
+                    + handle(GetIncidentReportsByExecutionIdQuery): List<IncidentReport>
+                }
+            }
+        }
+    }
+
+    package "infrastructure" {
+        package "persistence" {
+            package "jpa" {
+                package "repositories" {
+                    interface ExecutionRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByTaskProgrammingId(TaskProgrammingId): boolean
+                        + findById(Long): Optional<Execution>
+                    }
+
+                    interface IncidentReportRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByTitle(String): boolean
+                        + findById(Long): Optional<IncidentReport>
+                        + findByExecutionId(Long): List<IncidentReport>
+                        + getByExecutionId(Long): List<IncidentReport>
+                    }
+                }
+            }
+        }
+    }
+
+    package "interfaces" {
+        package "rest" {
+            package "controllers" {
+                class ExecutionController <<(C, #FFC0CB) Controller>> {
+                    - executionCommandService: ExecutionCommandService
+                    - executionQueryService: ExecutionQueryService
+                    + ExecutionController(ExecutionCommandService, ExecutionQueryService)
+                    + createExecution(CreateExecutionResource): ResponseEntity<ExecutionResource>
+                    + getExecutionById(Long): ResponseEntity<ExecutionResource>
+                    + getAllExecutions(): ResponseEntity<List<ExecutionResource>>
+                    + addEmployeeToExecution(Long, Long): ResponseEntity<ExecutionResource>
+                    + addEquipmentToExecution(Long, Long): ResponseEntity<ExecutionResource>
+                    - buildExecutionResponse(Long): ResponseEntity<ExecutionResource>
+                    + updateExecution(UpdateExecutionResource): ResponseEntity<ExecutionResource>
+                    + updateExecutionStatus(UpdateTaskExecutionStatusResource): ResponseEntity<ExecutionResource>
+                }
+
+                class IncidentReportController <<(C, #FFC0CB) Controller>> {
+                    - incidentReportCommandService: IncidentReportCommandService
+                    - incidentReportQueryService: IncidentReportQueryService
+                    + IncidentReportController(IncidentReportCommandService, IncidentReportQueryService)
+                    + addIncidentReportToExecution(CreateIncidentReportResource): ResponseEntity<IncidentReportResource>
+                    + getIncidentReportById(Long): ResponseEntity<IncidentReportResource>
+                    + getIncidentReportsByExecutionId(Long): ResponseEntity<List<IncidentReportResource>>
+                    + getAllIncidentReports(): ResponseEntity<List<IncidentReportResource>>
+                    + updateIncidentReport(UpdateIncidentReportResource): ResponseEntity<IncidentReportResource>
+                }
+            }
+            package "resources" {
+                class CreateExecutionResource <<(R, #F0F8FF) Resource>>
+                class CreateIncidentReportResource <<(R, #F0F8FF) Resource>>
+                class ExecutionResource <<(R, #F0F8FF) Resource>>
+                class IncidentReportResource <<(R, #F0F8FF) Resource>>
+                class UpdateExecutionResource <<(R, #F0F8FF) Resource>>
+                class UpdateIncidentReportResource <<(R, #F0F8FF) Resource>>
+                class UpdateTaskExecutionStatusResource <<(R, #F0F8FF) Resource>>
+            }
+            package "transform" {
+                class AddIncidentReportCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toCommandFromResource(CreateIncidentReportResource): AddIncidentReportCommand {static}
+                }
+                class CreateExecutionCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toCommandFromResource(CreateExecutionResource): CreateExecutionCommand {static}
+                }
+                class ExecutionResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toResourceFromEntity(Execution): ExecutionResource {static}
+                }
+                class IncidentReportResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toResourceFromEntity(IncidentReport): IncidentReportResource {static}
+                }
+                class UpdateExecutionCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toCommandFromResource(UpdateExecutionResource): UpdateExecutionCommand {static}
+                }
+                class UpdateIncidentReportCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toCommandFromResource(UpdateIncidentReportResource): UpdateIncidentReportDescriptionCommand {static}
+                }
+                class UpdateTaskExecutionStatusCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + toCommandFromResource(UpdateTaskExecutionStatusResource): UpdateTaskExecutionStatusCommand {static}
+                }
+            }
+        }
+    }
+}
+
+abstract class AuditableAbstractAggregateRoot<T> {
+    + getId(): Long
+}
+abstract class AuditableModel {
+    ' ... common audit fields
+}
+
+
+
+ExecutionCommandServiceImpl ..|> ExecutionCommandService
+IncidentReportCommandServiceImpl ..|> IncidentReportCommandService
+ExecutionQueryServiceImpl ..|> ExecutionQueryService
+IncidentReportQueryServiceImpl ..|> IncidentReportQueryService
+
+ExecutionCommandServiceImpl --> ExecutionRepository
+IncidentReportCommandServiceImpl --> IncidentReportRepository
+IncidentReportCommandServiceImpl --> ExecutionRepository
+ExecutionQueryServiceImpl --> ExecutionRepository
+IncidentReportQueryServiceImpl --> IncidentReportRepository
+
+Execution --* TaskProgrammingId
+Execution --* TaskExecutionStatus
+Execution --* ExecutionTimeFrame
+Execution --* TenantId
+Execution --* EmployeeId : uses (via @ElementCollection)
+Execution --* EquipmentId : uses (via @ElementCollection)
+
+IncidentReport --* IncidentSeverity
+IncidentReport --* TenantId
+
+Execution "1" --o "0..*" IncidentReport : incidents >
+
+CreateExecutionCommand ..> TaskProgrammingId
+CreateExecutionCommand ..> ExecutionTimeFrame
+CreateExecutionCommand ..> TenantId
+CreateExecutionCommand ..> Execution
+
+AddEmployeeIdToExecutionCommand ..> EmployeeId
+AddEquipmentIdToExecutionCommand ..> EquipmentId
+AddIncidentReportCommand ..> IncidentSeverity
+AddIncidentReportCommand ..> TenantId
+AddIncidentReportCommand ..> IncidentReport
+
+UpdateExecutionCommand ..> TaskProgrammingId
+UpdateExecutionCommand ..> ExecutionTimeFrame
+UpdateIncidentReportDescriptionCommand ..> IncidentReport
+UpdateTaskExecutionStatusCommand ..> Execution
+
+ExecutionRepository ..> Execution
+IncidentReportRepository ..> IncidentReport
+
+Execution --|> AuditableAbstractAggregateRoot
+IncidentReport --|> AuditableModel
+
+ExecutionController --> ExecutionCommandService
+ExecutionController --> ExecutionQueryService
+IncidentReportController --> IncidentReportCommandService
+IncidentReportController --> IncidentReportQueryService
+
+ExecutionController ..> CreateExecutionResource
+ExecutionController ..> ExecutionResource
+ExecutionController ..> UpdateExecutionResource
+ExecutionController ..> UpdateTaskExecutionStatusResource
+
+IncidentReportController ..> CreateIncidentReportResource
+IncidentReportController ..> IncidentReportResource
+IncidentReportController ..> UpdateIncidentReportResource
+
+ExecutionController ..> CreateExecutionCommand
+ExecutionController ..> GetExecutionByIdQuery
+ExecutionController ..> GetAllExecutionsQuery
+ExecutionController ..> AddEmployeeIdToExecutionCommand
+ExecutionController ..> AddEquipmentIdToExecutionCommand
+ExecutionController ..> UpdateExecutionCommand
+ExecutionController ..> UpdateTaskExecutionStatusCommand
+
+IncidentReportController ..> AddIncidentReportCommand
+IncidentReportController ..> GetIncidentReportByIdQuery
+IncidentReportController ..> GetIncidentReportsByExecutionIdQuery
+IncidentReportController ..> GetAllIncidentReportsQuery
+IncidentReportController ..> UpdateIncidentReportDescriptionCommand
+
+CreateExecutionCommandFromResourceAssembler ..> CreateExecutionResource
+CreateExecutionCommandFromResourceAssembler ..> CreateExecutionCommand
+ExecutionResourceFromEntityAssembler ..> Execution
+ExecutionResourceFromEntityAssembler ..> ExecutionResource
+UpdateExecutionCommandFromResourceAssembler ..> UpdateExecutionResource
+UpdateExecutionCommandFromResourceAssembler ..> UpdateExecutionCommand
+UpdateTaskExecutionStatusCommandFromResourceAssembler ..> UpdateTaskExecutionStatusResource
+UpdateTaskExecutionStatusCommandFromResourceAssembler ..> UpdateTaskExecutionStatusCommand
+
+AddIncidentReportCommandFromResourceAssembler ..> CreateIncidentReportResource
+AddIncidentReportCommandFromResourceAssembler ..> AddIncidentReportCommand
+IncidentReportResourceFromEntityAssembler ..> IncidentReport
+IncidentReportResourceFromEntityAssembler ..> IncidentReportResource
+UpdateIncidentReportCommandFromResourceAssembler ..> UpdateIncidentReportResource
+UpdateIncidentReportCommandFromResourceAssembler ..> UpdateIncidentReportDescriptionCommand
+
+@enduml

@@ -1,0 +1,436 @@
+@startuml
+!define DARKBLUE #F0F8FF
+!define LIGHTBLUE #E0F2F7
+!define GREEN #E6FFE6
+!define ORANGE #FFFAF0
+!define GREY #F5F5F5
+!define RED #FFEEEE
+!define PURPLE #E6E6FA
+!define TEAL #E0FFFF
+
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2F4F4F
+    BorderColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam package {
+    BackgroundColor DARKBLUE
+    BorderColor #1C405B
+    FontColor #1C405B
+}
+skinparam stereotype {
+    FontColor #6A5ACD
+}
+
+package "planification_context" {
+
+    package "application" {
+        package "internal" {
+            package "commandservices" {
+                class ActivityCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - activityRepository: ActivityRepository
+                    - taskRepository: TaskRepository
+                    - taskProgrammingRepository: TaskProgrammingRepository
+                    + ActivityCommandServiceImpl(ActivityRepository, TaskRepository, TaskProgrammingRepository)
+                    + handle(CreateActivityCommand): Long
+                    + handle(AddTaskCommand): Long
+                    + handle(AddTaskProgrammingCommand): Long
+                }
+            }
+            package "queryservices" {
+                class ActivityQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - activityRepository: ActivityRepository
+                    - taskRepository: TaskRepository
+                    - taskProgrammingRepository: TaskProgrammingRepository
+                    + ActivityQueryServiceImpl(ActivityRepository, TaskRepository, TaskProgrammingRepository)
+                    + handle(GetActivityByIdQuery): Optional<Activity>
+                    + handle(GetAllActivitiesQuery): List<Activity>
+                    + handle(GetTaskByIdQuery): Optional<Task>
+                    + handle(GetTasksByActivityIdQuery): List<Task>
+                    + handle(GetTaskProgrammingByIdQuery): Optional<TaskProgramming>
+                    + handle(GetTaskProgrammingsByTaskIdQuery): List<TaskProgramming>
+                }
+            }
+        }
+    }
+
+    package "domain" {
+        package "model" {
+            package "aggregates" {
+                class Activity <<(A, #B0E0E6) AggregateRoot>> {
+                    - activityCode: ActicityCode <<Embedded>>
+                    - description: String
+                    - expectedTime: LocalDateTime
+                    - weekNumber: Integer
+                    - activityStatus: ActivityStatus <<Embedded>>
+                    - origin: LocationRef <<Embedded>>
+                    - destination: LocationRef <<Embedded>>
+                    - tenantId: TenantId <<Embedded>>
+                    - tasks: List<Task>
+                    + Activity(String, String, LocalDateTime, Integer, String, Long, Long, Long, Long, Long)
+                    + Activity()
+                    + Activity(CreateActivityCommand)
+                    + addTask(Task)
+                }
+            }
+            package "commands" {
+                class AddTaskCommand <<(R, #FFDAB9) Record>> {
+                    + activityId: Long
+                    + title: String
+                    + description: String
+                    + status: String
+                }
+                class AddTaskProgrammingCommand <<(R, #FFDAB9) Record>> {
+                    + taskId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + programmingStatus: String
+                }
+                class CreateActivityCommand <<(R, #FFDAB9) Record>> {
+                    + activityCode: String
+                    + description: String
+                    + expectedTime: LocalDateTime
+                    + weekNumber: Integer
+                    + activityStatus: String
+                    + zoneOrigin: Long
+                    + locationOrigin: Long
+                    + zoneDestination: Long
+                    + locationDestination: Long
+                    + tenantId: Long
+                }
+            }
+            package "entities" {
+                class TaskProgramming <<(E, #90EE90) Entity>> {
+                    - resourceReference: ResourceReference <<Embedded>>
+                    - timeInterval: TimeInterval <<Embedded>>
+                    - programmingStatus: ProgrammingStatus <<Embedded>>
+                    - task: Task
+                    + TaskProgramming(String, Long, LocalDateTime, LocalDateTime, String)
+                    + TaskProgramming()
+                    + TaskProgramming(AddTaskProgrammingCommand)
+                    + overlaps(TimeInterval): boolean
+                    + updateStatus(ProgrammingStatus)
+                }
+                class Task <<(E, #90EE90) Entity>> {
+                    - title: String
+                    - description: String
+                    - activity: Activity
+                    - status: TaskStatus <<Embedded>>
+                    - taskProgrammings: List<TaskProgramming>
+                    + Task()
+                    + Task(String, String, String)
+                    + Task(AddTaskCommand)
+                    + addProgramming(TaskProgramming)
+                }
+            }
+            package "queries" {
+                class GetActivityByIdQuery <<(R, #FFFACD) Record>> {
+                    + id: Long
+                }
+                class GetAllActivitiesQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetTaskByIdQuery <<(R, #FFFACD) Record>> {
+                    + id: Long
+                }
+                class GetTaskProgrammingByIdQuery <<(R, #FFFACD) Record>> {
+                    + id: Long
+                }
+                class GetTaskProgrammingsByTaskIdQuery <<(R, #FFFACD) Record>> {
+                    + taskId: Long
+                }
+                class GetTasksByActivityIdQuery <<(R, #FFFACD) Record>> {
+                    + activityId: Long
+                }
+            }
+            package "valueobjects" {
+                class ActicityCode <<(V, #DDA0DD) ValueObject>> {
+                    + code: String
+                }
+                enum ActivityStatus <<(E, #D8BFD8) Enum>> {
+                    PLANNED
+                    IN_PROGRESS
+                    COMPLETED
+                    CANCELLED
+                }
+                class LocationRef <<(V, #DDA0DD) ValueObject>> {
+                    + zoneId: Long
+                    + locationId: Long
+                }
+                enum ProgrammingStatus <<(E, #D8BFD8) Enum>> {
+                    PENDING
+                    IN_PROGRESS
+                    COMPLETED
+                    CANCELLED
+                }
+                enum TaskStatus <<(E, #D8BFD8) Enum>> {
+                    PENDING
+                    IN_PROGRESS
+                    COMPLETED
+                    CANCELLED
+                }
+                class TenantId <<(V, #DDA0DD) ValueObject>> {
+                    + value: Long
+                    + TenantId(Long)
+                }
+                class ResourceReference <<(V, #DDA0DD) ValueObject>> {
+                    + resourceType: String
+                    + resourceId: Long
+                    + ResourceReference(String, Long)
+                }
+                class TimeInterval <<(V, #DDA0DD) ValueObject>> {
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + TimeInterval(LocalDateTime, LocalDateTime)
+                    + overlaps(TimeInterval): boolean
+                }
+            }
+            package "services" {
+                interface ActivityCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateActivityCommand): Long
+                    + handle(AddTaskCommand): Long
+                    + handle(AddTaskProgrammingCommand): Long
+                }
+                interface ActivityQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetActivityByIdQuery): Optional<Activity>
+                    + handle(GetAllActivitiesQuery): List<Activity>
+                    + handle(GetTaskByIdQuery): Optional<Task>
+                    + handle(GetTasksByActivityIdQuery): List<Task>
+                    + handle(GetTaskProgrammingByIdQuery): Optional<TaskProgramming>
+                    + handle(GetTaskProgrammingsByTaskIdQuery): List<TaskProgramming>
+                }
+            }
+        }
+    }
+
+    package "infrastructure" {
+        package "persistence" {
+            package "jpa" {
+                package "repositories" {
+                    interface ActivityRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByActivityCode(ActicityCode): boolean
+                        + findById(Long): Optional<Activity>
+                        + save(Activity): Activity
+                    }
+                    interface TaskProgrammingRepository <<(R, #D3D3D3) Repository>> {
+                        + findByTaskId(Long): List<TaskProgramming>
+                        + findById(Long): Optional<TaskProgramming>
+                        + save(TaskProgramming): TaskProgramming
+                    }
+                    interface TaskRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByTitle(String): boolean
+                        + findByActivityId(Long): List<Task>
+                        + findById(Long): Optional<Task>
+                        + save(Task): Task
+                    }
+                }
+            }
+        }
+    }
+
+    package "interfaces" {
+        package "rest" {
+            package "controllers" {
+                class ActivityController <<(C, #FFC0CB) Controller>> {
+                    - activityCommandService: ActivityCommandService
+                    - activityQueryService: ActivityQueryService
+                    + ActivityController(ActivityCommandService, ActivityQueryService)
+                    + createActivity(CreateActivityResource): ResponseEntity<ActivityResource>
+                    + getActivityById(Long): ResponseEntity<ActivityResource>
+                    + getAllActivities(): ResponseEntity<List<ActivityResource>>
+                }
+                class TaskController <<(C, #FFC0CB) Controller>> {
+                    - activityCommandService: ActivityCommandService
+                    - activityQueryService: ActivityQueryService
+                    + TaskController(ActivityCommandService, ActivityQueryService)
+                    + createTask(CreateTaskResource): ResponseEntity<TaskResource>
+                    + getTaskById(Long): ResponseEntity<TaskResource>
+                    + getTasksByActivityId(Long): ResponseEntity<List<TaskResource>>
+                }
+                class TaskProgrammingController <<(C, #FFC0CB) Controller>> {
+                    - activityCommandService: ActivityCommandService
+                    - activityQueryService: ActivityQueryService
+                    + TaskProgrammingController(ActivityCommandService, ActivityQueryService)
+                    + addTaskProgramming(CreateTaskProgrammingResource): ResponseEntity<TaskProgrammingResource>
+                    + getTaskProgrammingById(Long): ResponseEntity<TaskProgrammingResource>
+                    + getTaskProgrammingsByTaskId(Long): ResponseEntity<List<TaskProgrammingResource>>
+                }
+            }
+            package "resources" {
+                class ActivityResource <<(R, #F0F8FF) Resource>> {
+                    + id: Long
+                    + activityCode: String
+                    + description: String
+                    + expectedTime: LocalDateTime
+                    + weekNumber: Integer
+                    + activityStatus: ActivityStatus
+                    + zoneOrigin: Long
+                    + locationOrigin: Long
+                    + zoneDestination: Long
+                    + locationDestination: Long
+                    + tenantId: Long
+                }
+                class CreateActivityResource <<(R, #F0F8FF) Resource>> {
+                    + activityCode: String
+                    + description: String
+                    + expectedTime: LocalDateTime
+                    + weekNumber: Integer
+                    + activityStatus: String
+                    + zoneOrigin: Long
+                    + locationOrigin: Long
+                    + zoneDestination: Long
+                    + locationDestination: Long
+                    + tenantId: Long
+                }
+                class CreateTaskProgrammingResource <<(R, #F0F8FF) Resource>> {
+                    + taskId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + programmingStatus: String
+                }
+                class CreateTaskResource <<(R, #F0F8FF) Resource>> {
+                    + activityId: Long
+                    + description: String
+                    + status: String
+                    + title: String
+                }
+                class TaskProgrammingResource <<(R, #F0F8FF) Resource>> {
+                    + taskProgrammingId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + programmingStatus: ProgrammingStatus
+                }
+                class TaskResource <<(R, #F0F8FF) Resource>> {
+                    + taskId: Long
+                    + description: String
+                    + status: TaskStatus
+                    + title: String
+                }
+            }
+            package "transform" {
+                class ActivityResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Activity): ActivityResource
+                }
+                class AddTaskCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateTaskResource): AddTaskCommand
+                }
+                class AddTaskProgrammingCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateTaskProgrammingResource): AddTaskProgrammingCommand
+                }
+                class CreateActivityCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateActivityResource): CreateActivityCommand
+                }
+                class TaskProgrammingResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(TaskProgramming): TaskProgrammingResource
+                }
+                class TaskResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Task): TaskResource
+                }
+            }
+        }
+    }
+}
+
+abstract class AuditableAbstractAggregateRoot<T> {
+    + getId(): Long
+}
+
+
+
+
+
+ActivityCommandServiceImpl ..|> ActivityCommandService
+ActivityQueryServiceImpl ..|> ActivityQueryService
+
+ActivityCommandServiceImpl --> ActivityRepository
+ActivityCommandServiceImpl --> TaskRepository
+ActivityCommandServiceImpl --> TaskProgrammingRepository
+ActivityQueryServiceImpl --> ActivityRepository
+ActivityQueryServiceImpl --> TaskRepository
+ActivityQueryServiceImpl --> TaskProgrammingRepository
+
+Activity --* ActicityCode
+Activity --* ActivityStatus
+Activity --* LocationRef
+Activity --* TenantId
+TaskProgramming --* ResourceReference
+TaskProgramming --* TimeInterval
+TaskProgramming --* ProgrammingStatus
+Task --* TaskStatus
+
+Activity "1" --o "0..*" Task : tasks >
+Task "1" --o "0..*" TaskProgramming : taskProgrammings >
+
+CreateActivityCommand ..> ActicityCode
+CreateActivityCommand ..> LocationRef
+CreateActivityCommand ..> TenantId
+CreateActivityCommand ..> ActivityStatus
+AddTaskCommand ..> TaskStatus
+AddTaskCommand ..> Task
+AddTaskProgrammingCommand ..> ResourceReference
+AddTaskProgrammingCommand ..> TimeInterval
+AddTaskProgrammingCommand ..> ProgrammingStatus
+AddTaskProgrammingCommand ..> TaskProgramming
+GetTaskByIdQuery ..> Task
+GetTaskProgrammingByIdQuery ..> TaskProgramming
+GetTasksByActivityIdQuery ..> Activity
+GetTaskProgrammingsByTaskIdQuery ..> Task
+
+ActivityRepository ..> Activity
+TaskRepository ..> Task
+TaskProgrammingRepository ..> TaskProgramming
+
+Activity --|> AuditableAbstractAggregateRoot
+Task --|> AuditableModel
+TaskProgramming --|> AuditableModel
+
+ActivityController --> ActivityCommandService
+ActivityController --> ActivityQueryService
+TaskController --> ActivityCommandService
+TaskController --> ActivityQueryService
+TaskProgrammingController --> ActivityCommandService
+TaskProgrammingController --> ActivityQueryService
+
+ActivityController ..> CreateActivityResource
+ActivityController ..> ActivityResource
+ActivityController ..> CreateActivityCommandFromResourceAssembler
+ActivityController ..> ActivityResourceFromEntityAssembler
+ActivityController ..> GetActivityByIdQuery
+ActivityController ..> GetAllActivitiesQuery
+
+TaskController ..> CreateTaskResource
+TaskController ..> TaskResource
+TaskController ..> AddTaskCommandFromResourceAssembler
+TaskController ..> TaskResourceFromEntityAssembler
+TaskController ..> GetTaskByIdQuery
+TaskController ..> GetTasksByActivityIdQuery
+
+TaskProgrammingController ..> CreateTaskProgrammingResource
+TaskProgrammingController ..> TaskProgrammingResource
+TaskProgrammingController ..> AddTaskProgrammingCommandFromResourceAssembler
+TaskProgrammingController ..> TaskProgrammingResourceFromEntityAssembler
+TaskProgrammingController ..> GetTaskProgrammingByIdQuery
+TaskProgrammingController ..> GetTaskProgrammingsByTaskIdQuery
+
+CreateActivityCommandFromResourceAssembler --> CreateActivityResource
+CreateActivityCommandFromResourceAssembler --> CreateActivityCommand
+ActivityResourceFromEntityAssembler --> Activity
+ActivityResourceFromEntityAssembler --> ActivityResource
+AddTaskCommandFromResourceAssembler --> CreateTaskResource
+AddTaskCommandFromResourceAssembler --> AddTaskCommand
+TaskResourceFromEntityAssembler --> Task
+TaskResourceFromEntityAssembler --> TaskResource
+AddTaskProgrammingCommandFromResourceAssembler --> CreateTaskProgrammingResource
+AddTaskProgrammingCommandFromResourceAssembler --> AddTaskProgrammingCommand
+TaskProgrammingResourceFromEntityAssembler --> TaskProgramming
+TaskProgrammingResourceFromEntityAssembler --> TaskProgrammingResource
+
+@enduml

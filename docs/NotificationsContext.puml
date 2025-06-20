@@ -1,123 +1,66 @@
 @startuml
-package swiftport-backend as swiftport_backend  {
-    ' Bounded Context:
-    package notifications {
-       package domain {
-           package model {
-               package aggregates {
-                   class Notification {
-                       - String message
-                       - NotificationType type
-                       - LocalDateTime createdAt
-                       + Notification(String message, NotificationType type)
-                       + String getMessage()
-                       + NotificationType getType()
-                       + LocalDateTime getCreatedAt()
-                   }
-               }
-               package valueobjects {
-                   class NotificationType {
-                       - String type
-                       + NotificationType(String type)
-                       + String getType()
-                   }
-                   class Recipient {
-                       - String email
-                       - String phoneNumber
-                       + Recipient(String email, String phoneNumber)
-                       + String getEmail()
-                       + String getPhoneNumber()
-                       + boolean hasEmail()
-                       + boolean hasPhoneNumber()
-                   }
-               }
-               package commands {
-                   class SendNotification {
-                       - List<Recipient> recipients
-                       - String message
-                       - List<NotificationType> types
-                       + SendNotification(List<Recipient> recipients, String message, List<NotificationType> types)
-                       + List<Recipient> getRecipients()
-                       + String getMessage()
-                       + List<NotificationType> getTypes()
-                   }
-               }
-           }
-           package services {
-               interface NotificationService {
-                   + sendNotification(SendNotification command)
-               }
-               interface UserService {
-                   + getUserToNotifyById(String tenantId, String userId) : Recipient
-                   + getUsersToNotifyByTenant(String tenantId) : List<Recipient>
-                   + getUsersToNotifyByRole(String tenantId, String role) : List<Recipient>
-               }
-           }
-       }
-        package infrastructure {
-            package persistence {
-                package jpa {
-                    ' Interfaces que implementan el patrón Repository para la persistencia de datos
-                }
-            }
-        }
-        package application {
-            package internal {
-                package commandservices {
-                    ' Clases que implementan las interfaces de servicios de comandos, ejecutando lógica de negocios relacionada con cambios de estado
-                }
-                package queryservices {
-                    ' Clases que implementan las interfaces de servicios de consultas, para la obtención de datos del sistema
-                }
-            }
-        }
-        package interfaces {
-            package rest {
-                package resources {
-                    ' Clases de tipo record que funcionan como DTOs (Data Transfer Objects), siguiendo los principios REST (se tratan como recursos)
-                }
-                package transform {
-                    ' Clases con métodos estáticos para mapear entre recursos, comandos, consultas o entidades
-                    ' Equivalente al patrón Assembler, puede ser denominado de esta manera
-                }
-                package controllers {
-                    ' Clases que exponen los endpoints REST del sistema, permitiendo la interacción con el cliente
+!define DARKBLUE #F0F8FF
+!define LIGHTBLUE #E0F2F7
+!define GREEN #E6FFE6
+!define ORANGE #FFFAF0
+!define GREY #F5F5F5
+!define RED #FFEEEE
+!define PURPLE #E6E6FA
+!define TEAL #E0FFFF
+
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2F4F4F
+    BorderColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam package {
+    BackgroundColor DARKBLUE
+    BorderColor #1C405B
+    FontColor #1C405B
+}
+skinparam stereotype {
+    FontColor #6A5ACD
+}
+
+package "notifications_context" {
+
+    package "application" {
+        package "internal" {
+            package "outboundservices" {
+                package "email" {
+                    interface SmtpNotificationSender <<(I, #CCCCFF) Interface>> {
+                        + sendEmail(String, String, String): boolean
+                        + sendEmail(String[], String, String): boolean
+                        + sendHtmlEmail(String, String, String): boolean
+                        + sendHtmlEmail(String[], String, String): boolean
+                    }
                 }
             }
         }
     }
-    package shared{
-        package domain.model{
-            package aggregates{
-                class AuditableAbstractAggregateRoot {
-                    ' Clase base para los agregados auditable, gestionando operaciones comunes
-                }
-            }
-            package entities {
-                class AuditableModel{
-                    ' Entidad base que permite rastrear la auditoría de los cambios en los modelos
-                }
-            }
-        }
-        package infrastructure.persistence.jpa.strategy {
-            class SnakeCasePhysicalNamingStrategy {
-                ' Estrategia de nombrado físico que convierte los identificadores a formato snake_case en la base de datos
-                + Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
-                + Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
-                + Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
-                + Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
-                + Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment)
-                - Identifier toSnakeCase(final Identifier identifier)
-                - Identifier toSnakeCase(final Identifier identifier)
+
+    package "infrastructure" {
+        package "services" {
+            class SmtpNotificationSenderImpl <<(S, #ADD8E6) Service>> {
+                - mailSender: JavaMailSender
+                - fromEmail: String <<Value>>
+                + SmtpNotificationSenderImpl(JavaMailSender)
+                + sendEmail(String, String, String): boolean
+                + sendEmail(String[], String, String): boolean
+                + sendHtmlEmail(String, String, String): boolean
+                + sendHtmlEmail(String[], String, String): boolean
             }
         }
     }
 }
 
-package org.hibernate.boot.model.naming {
-    interface PhysicalNamingStrategy {
-        ' Interfaz para la estrategia de nombrado físico, utilizada para personalizar los nombres de las entidades en la base de datos
-    }
-}
+
+
+
+SmtpNotificationSenderImpl ..|> SmtpNotificationSender
+
 
 @enduml

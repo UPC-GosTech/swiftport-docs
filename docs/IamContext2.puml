@@ -1,0 +1,656 @@
+@startuml
+!define DARKBLUE #F0F8FF
+!define LIGHTBLUE #E0F2F7
+!define GREEN #E6FFE6
+!define ORANGE #FFFAF0
+!define GREY #F5F5F5
+!define RED #FFEEEE
+!define PURPLE #E6E6FA
+!define TEAL #E0FFFF
+
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2F4F4F
+    BorderColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam package {
+    BackgroundColor DARKBLUE
+    BorderColor #1C405B
+    FontColor #1C405B
+}
+skinparam stereotype {
+    FontColor #6A5ACD
+}
+
+package "iam_context" {
+
+    package "application" {
+        package "internal" {
+            package "commandservices" {
+                class RoleCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - roleRepository: RoleRepository
+                    + RoleCommandServiceImpl(RoleRepository)
+                    + handle(SeedRolesCommand)
+                }
+
+                class UserCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - logger: Logger
+                    - userRepository: UserRepository
+                    - tenantRepository: TenantRepository
+                    - roleRepository: RoleRepository
+                    - hashingService: HashingService
+                    - tokenService: TokenService
+                    + UserCommandServiceImpl(UserRepository, TenantRepository, RoleRepository, HashingService, TokenService)
+                    + handle(SignUpCommand): ImmutablePair<User, String>
+                    + handle(CreateUserCommand): User
+                    + handle(UpdateUserCommand): User
+                    + handle(DeleteUserCommand): User
+                    - getRolesFromNames(List<String>): List<Role>
+                }
+            }
+
+            package "queryservices" {
+                class RoleQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - roleRepository: RoleRepository
+                    + RoleQueryServiceImpl(RoleRepository)
+                    + handle(GetAllRolesQuery): List<Role>
+                    + handle(GetRoleByNameQuery): Optional<Role>
+                }
+
+                class UserQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - userRepository: UserRepository
+                    - hashingService: HashingService
+                    - tokenService: TokenService
+                    + UserQueryServiceImpl(UserRepository, HashingService, TokenService)
+                    + handle(GetAllUsersQuery): List<User>
+                    + handle(GetUserByIdQuery): Optional<User>
+                    + handle(GetUserByUsernameQuery): Optional<User>
+                    + handle(SignInCommand): ImmutablePair<User, String>
+                }
+            }
+
+            package "eventhandlers" {
+                class ApplicationReadyEventHandler <<(S, #ADD8E6) Service>> {
+                    - LOGGER: Logger
+                    - roleCommandService: RoleCommandService
+                    + ApplicationReadyEventHandler(RoleCommandService)
+                    + on(ApplicationReadyEvent)
+                }
+            }
+
+            package "outboundservices" {
+                package "hashing" {
+                    interface HashingService <<(I, #CCCCFF) Interface>> {
+                        + encode(CharSequence): String
+                        + matches(CharSequence, String): boolean
+                    }
+                }
+                package "tokens" {
+                    interface TokenService <<(I, #CCCCFF) Interface>> {
+                        + generateToken(Authentication): String
+                        + generateToken(String): String
+                        + generateToken(String, Long): String
+                        + getUsernameFromToken(String): String
+                        + getTenantIdFromToken(String): Long
+                        + validateToken(String): boolean
+                        + getBearerTokenFrom(HttpServletRequest): String
+                    }
+                }
+            }
+        }
+    }
+
+    package "domain" {
+        package "model" {
+            package "aggregates" {
+                class Tenant <<(A, #B0E0E6) AggregateRoot>> {
+                    - ruc: String
+                    - legalName: String
+                    - code: String
+                    - commercialName: String
+                    - address: String
+                    - city: String
+                    - country: String
+                    - phoneNumber: PhoneNumber <<Embedded>>
+                    - email: EmailAddress <<Embedded>>
+                    - website: String
+                    - active: Boolean
+                    + Tenant()
+                    + Tenant(String, String, String, String, String, String, PhoneNumber, EmailAddress, String)
+                    - generateCodeFromRuc(String): String
+                    + activate()
+                    + deactivate()
+                    + isActive(): boolean
+                    + getDisplayName(): String
+                    + getIdentifier(): String
+                    + getEmail(): String
+                    + getPhone(): String
+                }
+
+                class User <<(A, #B0E0E6) AggregateRoot>> {
+                    - username: String
+                    - passwordHash: String
+                    - email: EmailAddress <<Embedded>>
+                    - firstName: String
+                    - lastName: String
+                    - active: Boolean
+                    - tenantId: Long
+                    - roles: Set<Role>
+                    + User()
+                    + User(String, String, EmailAddress, String, String, Long)
+                    + User(String, String, EmailAddress, String, String, Long, List<Role>)
+                    + activate()
+                    + deactivate()
+                    + isActive(): boolean
+                    + getFullName(): String
+                    + updatePassword(String)
+                    + getEmail(): String
+                    + setEmail(String)
+                    + addRole(Role): User
+                    + addRoles(List<Role>): User
+                }
+            }
+
+            package "commands" {
+                class CreateUserCommand <<(R, #FFDAB9) Record>> {
+                    + username: String
+                    + password: String
+                    + email: EmailAddress
+                    + firstName: String
+                    + lastName: String
+                    + roles: List<String>
+                }
+                class DeleteUserCommand <<(R, #FFDAB9) Record>> {
+                    + userId: Long
+                }
+                class SeedRolesCommand <<(R, #FFDAB9) Record>> {
+                }
+                class SignInCommand <<(R, #FFDAB9) Record>> {
+                    + username: String
+                    + password: String
+                }
+                class SignUpCommand <<(R, #FFDAB9) Record>> {
+                    + ruc: String
+                    + legalName: String
+                    + commercialName: String
+                    + address: String
+                    + city: String
+                    + country: String
+                    + tenantPhone: PhoneNumber
+                    + tenantEmail: EmailAddress
+                    + website: String
+                    + username: String
+                    + password: String
+                    + email: EmailAddress
+                    + firstName: String
+                    + lastName: String
+                }
+                class UpdateUserCommand <<(R, #FFDAB9) Record>> {
+                    + userId: Long
+                    + email: EmailAddress
+                    + firstName: String
+                    + lastName: String
+                    + roles: List<String>
+                }
+            }
+
+            package "entities" {
+                class Role <<(E, #90EE90) Entity>> {
+                    - id: Long
+                    - name: Roles <<Enumerated>>
+                    + Role(Roles)
+                    + getStringName(): String
+                    + static getDefaultRole(): Role
+                    + static toRoleFromName(String): Role
+                    + static validateRoleSet(List<Role>): List<Role>
+                }
+            }
+
+            package "queries" {
+                class GetAllRolesQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllUsersQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetRoleByNameQuery <<(R, #FFFACD) Record>> {
+                    + name: Roles
+                }
+                class GetUserByIdQuery <<(R, #FFFACD) Record>> {
+                    + userId: Long
+                }
+                class GetUserByUsernameQuery <<(R, #FFFACD) Record>> {
+                    + username: String
+                }
+            }
+
+            package "valueobjects" {
+                class EmailAddress <<(V, #DDA0DD) ValueObject>> {
+                    + value: String
+                    + EmailAddress(String)
+                }
+                class PhoneNumber <<(V, #DDA0DD) ValueObject>> {
+                    + value: String
+                    + PhoneNumber(String)
+                }
+                enum Roles <<(E, #D8BFD8) Enum>> {
+                    ROLE_ADMIN
+                    ROLE_LOGISTIC_SUPERVISOR
+                    ROLE_LOGISTIC_OPERATOR
+                }
+            }
+
+            package "services" {
+                interface RoleCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(SeedRolesCommand)
+                }
+                interface RoleQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetAllRolesQuery): List<Role>
+                    + handle(GetRoleByNameQuery): Optional<Role>
+                }
+                interface UserCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(SignUpCommand): ImmutablePair<User, String>
+                    + handle(CreateUserCommand): User
+                    + handle(UpdateUserCommand): User
+                    + handle(DeleteUserCommand): User
+                }
+                interface UserQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetAllUsersQuery): List<User>
+                    + handle(GetUserByIdQuery): Optional<User>
+                    + handle(GetUserByUsernameQuery): Optional<User>
+                    + handle(SignInCommand): ImmutablePair<User, String>
+                }
+            }
+        }
+    }
+
+    package "infrastructure" {
+        package "authorization" {
+            package "sfs" {
+                package "configuration" {
+                    class WebSecurityConfiguration <<(C, #F0F8FF) Configuration>> {
+                        - userDetailsService: UserDetailsService
+                        - tokenService: BearerTokenService
+                        - hashingService: BCryptHashingService
+                        - unauthorizedRequestHandler: AuthenticationEntryPoint
+                        + WebSecurityConfiguration(UserDetailsService, BearerTokenService, BCryptHashingService, AuthenticationEntryPoint)
+                        + authorizationRequestFilter(): BearerAuthorizationRequestFilter
+                        + authenticationManager(AuthenticationConfiguration): AuthenticationManager
+                        + authenticationProvider(): DaoAuthenticationProvider
+                        + passwordEncoder(): PasswordEncoder
+                        + filterChain(HttpSecurity): SecurityFilterChain
+                    }
+                }
+                package "model" {
+                    class UserDetailsImpl <<(M, #ADD8E6) Model>> {
+                        - id: Long
+                        - username: String
+                        - password: String
+                        - email: String
+                        - firstName: String
+                        - lastName: String
+                        - tenantId: Long
+                        - accountNonExpired: boolean
+                        - accountNonLocked: boolean
+                        - credentialsNonExpired: boolean
+                        - enabled: boolean
+                        - authorities: Collection<? extends GrantedAuthority>
+                        + UserDetailsImpl(Long, String, String, String, String, String, Long, boolean, Collection<? extends GrantedAuthority>)
+                        + static build(User): UserDetailsImpl
+                        + getFullName(): String
+                        + getAuthorities(): Collection<? extends GrantedAuthority>
+                        + getPassword(): String
+                        + getUsername(): String
+                        + isAccountNonExpired(): boolean
+                        + isAccountNonLocked(): boolean
+                        + isCredentialsNonExpired(): boolean
+                        + isEnabled(): boolean
+                    }
+                    class UsernamePasswordAuthenticationTokenBuilder <<(M, #ADD8E6) Model>> {
+                        + static build(UserDetails, HttpServletRequest): UsernamePasswordAuthenticationToken
+                        + static build(UserDetails): UsernamePasswordAuthenticationToken
+                    }
+                }
+                package "pipeline" {
+                    class BearerAuthorizationRequestFilter <<(F, #E6E6FA) Filter>> {
+                        - LOGGER: Logger
+                        - tokenService: BearerTokenService
+                        - userDetailsService: UserDetailsService
+                        + BearerAuthorizationRequestFilter(BearerTokenService, UserDetailsService)
+                        + doFilterInternal(HttpServletRequest, HttpServletResponse, FilterChain)
+                    }
+                    class SecurityFilterConfiguration <<(C, #F0F8FF) Configuration>> {
+                        + tenantExtractionFilterRegistration(TenantExtractionFilter): FilterRegistrationBean<TenantExtractionFilter>
+                    }
+                    class TenantExtractionFilter <<(F, #E6E6FA) Filter>> {
+                        - LOGGER: Logger
+                        - tokenService: TokenServiceImpl
+                        + TenantExtractionFilter(TokenServiceImpl)
+                        + doFilterInternal(HttpServletRequest, HttpServletResponse, FilterChain)
+                        - shouldNotFilter(HttpServletRequest): boolean
+                    }
+                    class UnauthorizedRequestHandlerEntryPoint <<(E, #FFEEEE) EntryPoint>> {
+                        - LOGGER: Logger
+                        + commence(HttpServletRequest, HttpServletResponse, AuthenticationException)
+                    }
+                }
+                package "services" {
+                    class UserDetailsServiceImpl <<(S, #ADD8E6) Service>> {
+                        - userRepository: UserRepository
+                        + UserDetailsServiceImpl(UserRepository)
+                        + loadUserByUsername(String): UserDetails
+                    }
+                }
+            }
+        }
+        package "hashing" {
+            package "bcrypt" {
+                interface BCryptHashingService <<(I, #CCCCFF) Interface>>
+            }
+            package "services" {
+                class HashingServiceImpl <<(S, #ADD8E6) Service>> {
+                    - passwordEncoder: BCryptPasswordEncoder
+                    + HashingServiceImpl()
+                    + encode(CharSequence): String
+                    + matches(CharSequence, String): boolean
+                }
+            }
+        }
+        package "persistence" {
+            package "jpa" {
+                package "repositories" {
+                    interface RoleRepository <<(R, #D3D3D3) Repository>> {
+                        + findByName(Roles): Optional<Role>
+                        + existsByName(Roles): boolean
+                        + findAll(): List<Role>
+                        + save(Role): Role
+                    }
+                    interface TenantRepository <<(R, #D3D3D3) Repository>> {
+                        + findByRuc(String): Optional<Tenant>
+                        + existsByRuc(String): boolean
+                        + existsByEmail(EmailAddress): boolean
+                        + findByLegalName(String): Optional<Tenant>
+                        + findByEmailValue(String): Optional<Tenant>
+                        + save(Tenant): Tenant
+                    }
+                    interface UserRepository <<(R, #D3D3D3) Repository>> {
+                        + findByUsername(String): Optional<User>
+                        + findByEmail(EmailAddress): Optional<User>
+                        + existsByUsername(String): boolean
+                        + existsByEmail(EmailAddress): boolean
+                        + findByUsernameAndTenantId(String, Long): Optional<User>
+                        + findAllByTenantId(Long): List<User>
+                        + findByIdAndTenantId(Long, Long): Optional<User>
+                        + existsByUsernameAndTenantId(String, Long): boolean
+                        + existsByEmailAndTenantId(EmailAddress, Long): boolean
+                        + save(User): User
+                    }
+                }
+            }
+        }
+        package "tokens" {
+            package "jwt" {
+                interface BearerTokenService <<(I, #CCCCFF) Interface>>
+                package "services" {
+                    class TokenServiceImpl <<(S, #ADD8E6) Service>> {
+                        - LOGGER: Logger
+                        - secret: String <<Value>>
+                        - expirationDays: int <<Value>>
+                        + TokenServiceImpl()
+                        + generateToken(Authentication): String
+                        + generateToken(String): String
+                        + generateToken(String, Long): String
+                        + getUsernameFromToken(String): String
+                        + getTenantIdFromToken(String): Long
+                        + validateToken(String): boolean
+                        - extractClaim(String, Function<Claims, T>): T
+                        - extractAllClaims(String): Claims
+                        - getSigningKey(): SecretKey
+                        - isTokenPresentIn(String): boolean
+                        - isBearerTokenIn(String): boolean
+                        - extractTokenFrom(String): String
+                        - getAuthorizationParameterFrom(HttpServletRequest): String
+                        + getBearerTokenFrom(HttpServletRequest): String
+                    }
+                }
+            }
+        }
+    }
+
+    package "interfaces" {
+        package "rest" {
+            package "controllers" {
+                class AuthenticationController <<(C, #FFC0CB) Controller>> {
+                    - logger: Logger
+                    - userCommandService: UserCommandService
+                    - userQueryService: UserQueryService
+                    + AuthenticationController(UserCommandService, UserQueryService)
+                    + signIn(SignInResource): ResponseEntity<?>
+                    + signUp(SignUpResource): ResponseEntity<?>
+                }
+                class RolesController <<(C, #FFC0CB) Controller>> {
+                    - roleQueryService: RoleQueryService
+                    + RolesController(RoleQueryService)
+                    + getAllRoles(): ResponseEntity<List<RoleResource>>
+                }
+                class UsersController <<(C, #FFC0CB) Controller>> {
+                    - logger: Logger
+                    - userQueryService: UserQueryService
+                    - userCommandService: UserCommandService
+                    + UsersController(UserQueryService, UserCommandService)
+                    + getAllUsers(): ResponseEntity<List<UserResource>>
+                    + getUserById(Long): ResponseEntity<UserResource>
+                    + createUser(CreateUserResource): ResponseEntity<UserResource>
+                    + updateUser(Long, UpdateUserResource): ResponseEntity<UserResource>
+                    + deleteUser(Long): ResponseEntity<UserResource>
+                }
+            }
+            package "resources" {
+                class AuthenticatedUserResource <<(R, #F0F8FF) Resource>> {
+                    + id: Long
+                    + username: String
+                    + token: String
+                }
+                class CreateUserResource <<(R, #F0F8FF) Resource>> {
+                    + username: String
+                    + password: String
+                    + email: String
+                    + firstName: String
+                    + lastName: String
+                    + roles: List<String>
+                }
+                class RoleResource <<(R, #F0F8FF) Resource>> {
+                    + id: Long
+                    + name: String
+                }
+                class SignInResource <<(R, #F0F8FF) Resource>> {
+                    + username: String
+                    + password: String
+                }
+                class SignUpResource <<(R, #F0F8FF) Resource>> {
+                    + ruc: String
+                    + legalName: String
+                    + commercialName: String
+                    + address: String
+                    + city: String
+                    + country: String
+                    + tenantPhone: String
+                    + tenantEmail: String
+                    + website: String
+                    + username: String
+                    + password: String
+                    + email: String
+                    + firstName: String
+                    + lastName: String
+                }
+                class UpdateUserResource <<(R, #F0F8FF) Resource>> {
+                    + email: String
+                    + firstName: String
+                    + lastName: String
+                    + roles: List<String>
+                }
+                class UserResource <<(R, #F0F8FF) Resource>> {
+                    + id: Long
+                    + username: String
+                    + email: String
+                    + firstName: String
+                    + lastName: String
+                    + active: Boolean
+                    + roles: List<String>
+                }
+            }
+            package "transform" {
+                class AuthenticatedUserResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(User, String): AuthenticatedUserResource
+                }
+                class CreateUserCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateUserResource): CreateUserCommand
+                }
+                class RoleResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Role): RoleResource
+                }
+                class SignInCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(SignInResource): SignInCommand
+                }
+                class SignUpCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(SignUpResource): SignUpCommand
+                }
+                class UpdateUserCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(Long, UpdateUserResource): UpdateUserCommand
+                }
+                class UserResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(User): UserResource
+                }
+            }
+        }
+    }
+}
+
+abstract class AuditableAbstractAggregateRoot<T> {
+    + getId(): Long
+}
+
+
+
+WebSecurityConfiguration --> BearerTokenService
+WebSecurityConfiguration --> BCryptHashingService
+WebSecurityConfiguration --> BearerAuthorizationRequestFilter : creates
+UserDetailsImpl --> User
+BearerAuthorizationRequestFilter --> BearerTokenService
+BearerAuthorizationRequestFilter --> UsernamePasswordAuthenticationTokenBuilder
+SecurityFilterConfiguration --> TenantExtractionFilter : registers
+TenantExtractionFilter --> TokenServiceImpl
+UserDetailsServiceImpl --> UserRepository
+UserDetailsServiceImpl --> UserDetailsImpl
+
+HashingServiceImpl ..|> BCryptHashingService
+BCryptHashingService ..|> HashingService
+
+RoleRepository ..> Role
+TenantRepository ..> Tenant
+TenantRepository ..> EmailAddress
+UserRepository ..> User
+UserRepository ..> EmailAddress
+UserRepository ..> Roles
+
+BearerTokenService ..|> TokenService
+TokenServiceImpl ..|> BearerTokenService
+
+AuthenticationController --> UserCommandService
+AuthenticationController --> UserQueryService
+AuthenticationController ..> SignInResource
+AuthenticationController ..> SignUpResource
+AuthenticationController ..> SignInCommandFromResourceAssembler
+AuthenticationController ..> SignUpCommandFromResourceAssembler
+AuthenticationController ..> AuthenticatedUserResourceFromEntityAssembler
+AuthenticationController ..> UserResourceFromEntityAssembler
+RolesController --> RoleQueryService
+RolesController ..> GetAllRolesQuery
+RolesController ..> RoleResourceFromEntityAssembler
+RolesController ..> RoleResource
+UsersController --> UserQueryService
+UsersController --> UserCommandService
+UsersController ..> GetAllUsersQuery
+UsersController ..> GetUserByIdQuery
+UsersController ..> CreateUserResource
+UsersController ..> UpdateUserResource
+UsersController ..> UserResource
+UsersController ..> CreateUserCommand
+UsersController ..> UpdateUserCommand
+UsersController ..> DeleteUserCommand
+UsersController ..> CreateUserCommandFromResourceAssembler
+UsersController ..> UpdateUserCommandFromResourceAssembler
+UsersController ..> UserResourceFromEntityAssembler
+
+AuthenticatedUserResource ..> Roles
+CreateUserResource ..> CreateUserCommand
+RoleResource ..> Roles
+SignInResource ..> SignInCommand
+SignUpResource ..> SignUpCommand
+UpdateUserResource ..> UpdateUserCommand
+UserResource ..> Roles
+
+AuthenticatedUserResourceFromEntityAssembler --> User
+AuthenticatedUserResourceFromEntityAssembler --> AuthenticatedUserResource
+CreateUserCommandFromResourceAssembler --> CreateUserResource
+CreateUserCommandFromResourceAssembler --> CreateUserCommand
+CreateUserCommandFromResourceAssembler ..> EmailAddress
+RoleResourceFromEntityAssembler --> Role
+RoleResourceFromEntityAssembler --> RoleResource
+SignInCommandFromResourceAssembler --> SignInResource
+SignInCommandFromResourceAssembler --> SignInCommand
+SignUpCommandFromResourceAssembler --> SignUpResource
+SignUpCommandFromResourceAssembler --> SignUpCommand
+SignUpCommandFromResourceAssembler ..> PhoneNumber
+SignUpCommandFromResourceAssembler ..> EmailAddress
+UpdateUserCommandFromResourceAssembler --> UpdateUserResource
+UpdateUserCommandFromResourceAssembler --> UpdateUserCommand
+UpdateUserCommandFromResourceAssembler ..> EmailAddress
+UserResourceFromEntityAssembler --> User
+UserResourceFromEntityAssembler --> UserResource
+
+UserCommandServiceImpl --> UserRepository
+UserCommandServiceImpl --> TenantRepository
+UserCommandServiceImpl --> RoleRepository
+UserCommandServiceImpl --> HashingService
+UserCommandServiceImpl --> TokenService
+UserCommandServiceImpl ..> Roles
+UserCommandServiceImpl ..> User
+UserCommandServiceImpl ..> Tenant
+RoleCommandServiceImpl --> RoleRepository
+RoleCommandServiceImpl ..> Roles
+RoleCommandServiceImpl ..> Role
+RoleCommandServiceImpl ..> SeedRolesCommand
+
+UserQueryServiceImpl --> UserRepository
+UserQueryServiceImpl --> HashingService
+UserQueryServiceImpl --> TokenService
+UserQueryServiceImpl ..> User
+UserQueryServiceImpl ..> SignInCommand
+RoleQueryServiceImpl --> RoleRepository
+RoleQueryServiceImpl ..> Role
+RoleQueryServiceImpl ..> GetAllRolesQuery
+RoleQueryServiceImpl ..> GetRoleByNameQuery
+RoleQueryServiceImpl ..> Roles
+
+
+Tenant --* PhoneNumber
+Tenant --* EmailAddress
+User --* EmailAddress
+User "n" -- "1" Tenant : tenantId >
+User "n" -- "n" Role : roles >
+
+CreateUserCommand ..> EmailAddress
+SignUpCommand ..> PhoneNumber
+SignUpCommand ..> EmailAddress
+UpdateUserCommand ..> EmailAddress
+
+Role --* Roles
+
+GetRoleByNameQuery ..> Roles
+
+User --|> AuditableAbstractAggregateRoot
+Tenant --|> AuditableAbstractAggregateRoot
+
+@enduml

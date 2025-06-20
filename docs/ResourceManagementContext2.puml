@@ -1,0 +1,806 @@
+@startuml
+!define DARKBLUE #F0F8FF
+!define LIGHTBLUE #E0F2F7
+!define GREEN #E6FFE6
+!define ORANGE #FFFAF0
+!define GREY #F5F5F5
+!define RED #FFEEEE
+!define PURPLE #E6E6FA
+!define TEAL #E0FFFF
+
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+skinparam class {
+    BackgroundColor White
+    ArrowColor #2F4F4F
+    BorderColor #2F4F4F
+    FontColor #2F4F4F
+}
+skinparam package {
+    BackgroundColor DARKBLUE
+    BorderColor #1C405B
+    FontColor #1C405B
+}
+skinparam stereotype {
+    FontColor #6A5ACD
+}
+
+package "resources_context" {
+
+    package "application" {
+        package "internal" {
+            package "commandservices" {
+                class EmployeeCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - employeeRepository: EmployeeRepository
+                    + EmployeeCommandServiceImpl(EmployeeRepository)
+                    + handle(CreateEmployeeCommand): Long
+                }
+                class EquipmentCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - equipmentRepository: EquipmentRepository
+                    + EquipmentCommandServiceImpl(EquipmentRepository)
+                    + handle(CreateEquipmentCommand): Long
+                }
+                class PositionCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - positionRepository: PositionRepository
+                    + PositionCommandServiceImpl(PositionRepository)
+                    + handle(CreatePositionCommand): Long
+                }
+                class ReservationCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - reservationRepository: ReservationRepository
+                    + ReservationCommandServiceImpl(ReservationRepository)
+                    + handle(CreateReservationCommand): Long
+                }
+                class TeamCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - teamRepository: TeamRepository
+                    + TeamCommandServiceImpl(TeamRepository)
+                    + handle(CreateTeamCommand): Long
+                }
+                class ZoneCommandServiceImpl <<(S, #ADD8E6) Service>> {
+                    - zoneRepository: ZoneRepository
+                    + ZoneCommandServiceImpl(ZoneRepository)
+                    + handle(CreateZoneCommand): Long
+                }
+            }
+            package "queryservices" {
+                class EmployeeQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - employeeRepository: EmployeeRepository
+                    + EmployeeQueryServiceImpl(EmployeeRepository)
+                    + handle(GetEmployeeByIdQuery): Optional<Employee>
+                    + handle(GetAllEmployeesQuery): List<Employee>
+                }
+                class EquipmentQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - equipmentRepository: EquipmentRepository
+                    + EquipmentQueryServiceImpl(EquipmentRepository)
+                    + handle(GetEquipmentByIdQuery): Optional<Equipment>
+                    + handle(GetAllEquipmentsQuery): List<Equipment>
+                }
+                class PositionQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - positionRepository: PositionRepository
+                    + PositionQueryServiceImpl(PositionRepository)
+                    + handle(GetPositionByIdQuery): Optional<Position>
+                    + handle(GetAllPositionsQuery): List<Position>
+                }
+                class ReservationQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - reservationRepository: ReservationRepository
+                    + ReservationQueryServiceImpl(ReservationRepository)
+                    + handle(GetReservationByIdQuery): Optional<Reservation>
+                    + handle(GetReservationsByResourceReference): List<Reservation>
+                }
+                class TeamQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - teamRepository: TeamRepository
+                    + TeamQueryServiceImpl(TeamRepository)
+                    + handle(GetTeamByIdQuery): Optional<Team>
+                    + handle(GetAllTeamsQuery): List<Team>
+                }
+                class ZoneQueryServiceImpl <<(S, #ADD8E6) Service>> {
+                    - zoneRepository: ZoneRepository
+                    + ZoneQueryServiceImpl(ZoneRepository)
+                    + handle(GetZoneByIdQuery): Optional<Zone>
+                    + handle(GetAllZonesQuery): List<Zone>
+                }
+            }
+        }
+    }
+
+    package "domain" {
+        package "model" {
+            package "aggregates" {
+                class Employee <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - name: FullName <<Embedded>>
+                    - contactInfo: ContactInfo <<Embedded>>
+                    - position: String
+                    - employeeStatus: Availability <<Embedded>>
+                    + Employee(Long, String, String, String, String, String, String)
+                    + Employee()
+                    + Employee(CreateEmployeeCommand)
+                    + updateContactInfo(ContactInfo)
+                    + changeAvailability(Availability)
+                }
+                class Equipment <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - code: String
+                    - name: String
+                    - plate: String
+                    - capacity: Capacity <<Embedded>>
+                    - equipmentStatus: Availability <<Embedded>>
+                    + Equipment(Long, String, String, String, String, BigDecimal, Integer)
+                    + Equipment()
+                    + Equipment(CreateEquipmentCommand)
+                    + isAvailable(TimeInterval): boolean
+                    + scheduleInspection(LocalDateTime)
+                }
+                class Position <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - title: String
+                    - description: String
+                    + Position(Long, String, String)
+                    + Position()
+                    + Position(CreatePositionCommand)
+                    + updateDetails(String, String)
+                }
+                class Reservation <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - resourceReference: ResourceReference <<Embedded>>
+                    - timeInterval: TimeInterval <<Embedded>>
+                    + Reservation(Long, String, Long, LocalDateTime, LocalDateTime)
+                    + Reservation()
+                    + Reservation(CreateReservationCommand)
+                    + static create(CreateReservationCommand): Reservation
+                    + conflictsWith(TimeInterval): boolean
+                }
+                class Team <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - name: String
+                    - teamMembers: List<TeamMember> <<ElementCollection>>
+                    + Team(Long, String, List<TeamMember>)
+                    + Team()
+                    + Team(CreateTeamCommand)
+                    + addMember(TeamMember)
+                    + removeMember(Long)
+                    + validateMembersUnique()
+                }
+                class Zone <<(A, #B0E0E6) AggregateRoot>> {
+                    - tenantId: TenantId <<Embedded>>
+                    - name: String
+                    - locationsList: List<Location> <<ElementCollection>>
+                    + Zone(Long, String)
+                    + Zone()
+                    + Zone(CreateZoneCommand)
+                }
+            }
+            package "commands" {
+                class CreateEmployeeCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + name: String
+                    + lastName: String
+                    + position: String
+                    + employeeStatus: String
+                    + email: String
+                    + phoneNumber: String
+                }
+                class CreateEquipmentCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + name: String
+                    + status: String
+                    + code: String
+                    + plate: String
+                    + capacityLoad: BigDecimal
+                    + capacityPax: Integer
+                }
+                class CreatePositionCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + title: String
+                    + description: String
+                }
+                class CreateReservationCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                }
+                class CreateTeamCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + name: String
+                    + teamMembers: List<TeamMember>
+                }
+                class CreateZoneCommand <<(R, #FFDAB9) Record>> {
+                    + tenantId: Long
+                    + name: String
+                    + locations: List<Location>
+                }
+            }
+            package "entities" {
+                class Location <<(E, #90EE90) Entity>> {
+                    - id: Long
+                    - address: Address <<Embedded>>
+                    - coordinates: Coordinates <<Embedded>>
+                    + Location(Address, Coordinates)
+                    + Location()
+                }
+                class TeamMember <<(E, #90EE90) Entity>> {
+                    - id: Long
+                    - employeeId: Long
+                    + TeamMember(Long, Team)
+                    + TeamMember()
+                }
+            }
+            package "queries" {
+                class GetAllEmployeesQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllEquipmentsQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllPositionsQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllTeamsQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetAllZonesQuery <<(R, #FFFACD) Record>> {
+                }
+                class GetEmployeeByIdQuery <<(R, #FFFACD) Record>> {
+                    + employeeId: Long
+                }
+                class GetEquipmentByIdQuery <<(R, #FFFACD) Record>> {
+                    + equipmentId: Long
+                }
+                class GetPositionByIdQuery <<(R, #FFFACD) Record>> {
+                    + positionId: Long
+                }
+                class GetReservationByIdQuery <<(R, #FFFACD) Record>> {
+                    + reservationId: Long
+                }
+                class GetReservationsByResourceReference <<(R, #FFFACD) Record>> {
+                    + resourceId: Long
+                    + resourceType: String
+                }
+                class GetTeamByIdQuery <<(R, #FFFACD) Record>> {
+                    + teamId: Long
+                }
+                class GetZoneByIdQuery <<(R, #FFFACD) Record>> {
+                    + zoneId: Long
+                }
+            }
+            package "valueobjects" {
+                class Address <<(V, #DDA0DD) ValueObject>> {
+                    + street: String
+                    + city: String
+                    + country: String
+                    + Address(String, String, String)
+                }
+                enum Availability <<(E, #D8BFD8) Enum>> {
+                    AVAILABLE
+                    UNAVAILABLE
+                    VACATION
+                    RESERVED
+                }
+                class Capacity <<(V, #DDA0DD) ValueObject>> {
+                    + tons: BigDecimal
+                    + passengers: Integer
+                    + Capacity(BigDecimal, Integer)
+                }
+                class ContactInfo <<(V, #DDA0DD) ValueObject>> {
+                    + email: String
+                    + phoneNumber: String
+                    + ContactInfo(String, String)
+                }
+                class Coordinates <<(V, #DDA0DD) ValueObject>> {
+                    + latitude: Double
+                    + longitude: Double
+                    + Coordinates(Double, Double)
+                }
+                class Dni <<(V, #DDA0DD) ValueObject>> {
+                    + dni: String
+                    + Dni(String)
+                }
+                class FullName <<(V, #DDA0DD) ValueObject>> {
+                    + firstName: String
+                    + lastName: String
+                    + FullName(String, String)
+                }
+                class LocationId <<(V, #DDA0DD) ValueObject>> {
+                    + locationId: Long
+                    + LocationId(Long)
+                }
+                class ResourceId <<(V, #DDA0DD) ValueObject>> {
+                    + resourceId: Long
+                    + ResourceId(Long)
+                }
+                class ResourceReference <<(V, #DDA0DD) ValueObject>> {
+                    + resourceType: String
+                    + resourceId: Long
+                    + ResourceReference(String, Long)
+                }
+                enum ResourceType <<(E, #D8BFD8) Enum>> {
+                    VEHICLE
+                    EMPLOYEE
+                    POSITION
+                    ZONE
+                    EQUIPMENT
+                    TEAM
+                }
+                class TeamMemberId <<(V, #DDA0DD) ValueObject>> {
+                    + teamMemberId: Long
+                    + TeamMemberId(Long)
+                }
+                class TimeInterval <<(V, #DDA0DD) ValueObject>> {
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                    + TimeInterval(LocalDateTime, LocalDateTime)
+                    + overlaps(TimeInterval): boolean
+                }
+                class TenantId <<(V, #DDA0DD) ValueObject>> {
+                    + value: Long
+                    + TenantId(Long)
+                }
+            }
+            package "services" {
+                interface EmployeeCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateEmployeeCommand): Long
+                }
+                interface EmployeeQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetEmployeeByIdQuery): Optional<Employee>
+                    + handle(GetAllEmployeesQuery): List<Employee>
+                }
+                interface EquipmentCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateEquipmentCommand): Long
+                }
+                interface EquipmentQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetEquipmentByIdQuery): Optional<Equipment>
+                    + handle(GetAllEquipmentsQuery): List<Equipment>
+                }
+                interface PositionCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreatePositionCommand): Long
+                }
+                interface PositionQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetPositionByIdQuery): Optional<Position>
+                    + handle(GetAllPositionsQuery): List<Position>
+                }
+                interface ReservationCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateReservationCommand): Long
+                }
+                interface ReservationQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetReservationByIdQuery): Optional<Reservation>
+                    + handle(GetReservationsByResourceReference): List<Reservation>
+                }
+                interface TeamCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateTeamCommand): Long
+                }
+                interface TeamQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetTeamByIdQuery): Optional<Team>
+                    + handle(GetAllTeamsQuery): List<Team>
+                }
+                interface ZoneCommandService <<(I, #CCCCFF) Interface>> {
+                    + handle(CreateZoneCommand): Long
+                }
+                interface ZoneQueryService <<(I, #CCCCFF) Interface>> {
+                    + handle(GetZoneByIdQuery): Optional<Zone>
+                    + handle(GetAllZonesQuery): List<Zone>
+                }
+            }
+        }
+    }
+
+    package "infrastructure" {
+        package "persistence" {
+            package "jpa" {
+                package "repositories" {
+                    interface EmployeeRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByName(FullName): boolean
+                        + existsByNameAndIdIsNot(FullName, Long): boolean
+                        + findById(Long): Optional<Employee>
+                        + findAll(): List<Employee>
+                        + save(Employee): Employee
+                    }
+                    interface EquipmentRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByPlate(String): boolean
+                        + findById(Long): Optional<Equipment>
+                        + findAll(): List<Equipment>
+                        + save(Equipment): Equipment
+                    }
+                    interface PositionRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByTitle(String): boolean
+                        + findById(Long): Optional<Position>
+                        + findAll(): List<Position>
+                        + save(Position): Position
+                    }
+                    interface ReservationRepository <<(R, #D3D3D3) Repository>> {
+                        + findById(Long): Optional<Reservation>
+                        + findByResourceReference(ResourceReference): List<Reservation>
+                        + save(Reservation): Reservation
+                    }
+                    interface TeamRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByName(String): boolean
+                        + findById(Long): Optional<Team>
+                        + findAll(): List<Team>
+                        + save(Team): Team
+                    }
+                    interface ZoneRepository <<(R, #D3D3D3) Repository>> {
+                        + existsByName(String): boolean
+                        + findById(Long): Optional<Zone>
+                        + findAll(): List<Zone>
+                        + save(Zone): Zone
+                    }
+                }
+            }
+        }
+    }
+
+    package "interfaces" {
+        package "rest" {
+            package "controllers" {
+                class EmployeeController <<(C, #FFC0CB) Controller>> {
+                    - employeeCommandService: EmployeeCommandService
+                    - employeeQueryService: EmployeeQueryService
+                    + EmployeeController(EmployeeCommandService, EmployeeQueryService)
+                    + createEmployee(CreateEmployeeResource): ResponseEntity<EmployeeResource>
+                    + getEmployee(Long): ResponseEntity<EmployeeResource>
+                    + getAllEmployees(): ResponseEntity<List<EmployeeResource>>
+                }
+                class EquipmentController <<(C, #FFC0CB) Controller>> {
+                    - equipmentCommandService: EquipmentCommandService
+                    - equipmentQueryService: EquipmentQueryService
+                    + EquipmentController(EquipmentCommandService, EquipmentQueryService)
+                    + createEquipment(CreateEquipmentResource): ResponseEntity<EquipmentResource>
+                    + getEquipment(Long): ResponseEntity<EquipmentResource>
+                    + getAllEquipment(): ResponseEntity<List<EquipmentResource>>
+                }
+                class PositionController <<(C, #FFC0CB) Controller>> {
+                    - positionCommandService: PositionCommandService
+                    - positionQueryService: PositionQueryService
+                    + PositionController(PositionCommandService, PositionQueryService)
+                    + createPosition(CreatePositionResource): ResponseEntity<PositionResource>
+                    + getPosition(Long): ResponseEntity<PositionResource>
+                    + getAllPositions(): ResponseEntity<List<PositionResource>>
+                }
+                class ReservationController <<(C, #FFC0CB) Controller>> {
+                    - reservationCommandService: ReservationCommandService
+                    - reservationQueryService: ReservationQueryService
+                    + ReservationController(ReservationCommandService, ReservationQueryService)
+                    + createReservation(CreateReservationResource): ResponseEntity<ReservationResource>
+                    + getReservation(Long): ResponseEntity<ReservationResource>
+                    + getReservationsByResourceReference(String, Long): ResponseEntity<List<ReservationResource>>
+                }
+                class TeamController <<(C, #FFC0CB) Controller>> {
+                    - teamCommandService: TeamCommandService
+                    - teamQueryService: TeamQueryService
+                    + TeamController(TeamCommandService, TeamQueryService)
+                    + createTeam(CreateTeamResource): ResponseEntity<TeamResource>
+                    + getTeam(Long): ResponseEntity<TeamResource>
+                    + getAllTeams(): ResponseEntity<List<TeamResource>>
+                }
+                class ZoneController <<(C, #FFC0CB) Controller>> {
+                    - zoneCommandService: ZoneCommandService
+                    - zoneQueryService: ZoneQueryService
+                    + ZoneController(ZoneCommandService, ZoneQueryService)
+                    + createZone(CreateZoneResource): ResponseEntity<ZoneResource>
+                    + getZone(Long): ResponseEntity<ZoneResource>
+                    + getAllZones(): ResponseEntity<List<ZoneResource>>
+                }
+            }
+            package "resources" {
+                class CreateEmployeeResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + name: String
+                    + lastName: String
+                    + position: String
+                    + employeeStatus: String
+                    + email: String
+                    + phoneNumber: String
+                }
+                class CreateEquipmentResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + name: String
+                    + status: String
+                    + code: String
+                    + plate: String
+                    + capacityLoad: BigDecimal
+                    + capacityPax: Integer
+                }
+                class CreatePositionResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + title: String
+                    + description: String
+                }
+                class CreateReservationResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                }
+                class CreateTeamResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + name: String
+                    + teamMembers: List<TeamMember>
+                }
+                class CreateZoneResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + name: String
+                    + locations: List<Location>
+                }
+                class EmployeeResource <<(R, #F0F8FF) Resource>> {
+                    + tenantId: Long
+                    + name: String
+                    + lastName: String
+                    + position: String
+                    + employeeStatus: Availability
+                    + email: String
+                    + phoneNumber: String
+                }
+                class EquipmentResource <<(R, #F0F8FF) Resource>> {
+                    + equipmentId: Long
+                    + tenantId: Long
+                    + name: String
+                    + status: Availability
+                    + code: String
+                    + plate: String
+                    + capacityLoad: BigDecimal
+                    + capacityPax: Integer
+                }
+                class PositionResource <<(R, #F0F8FF) Resource>> {
+                    + positionId: Long
+                    + tenantId: Long
+                    + title: String
+                    + description: String
+                }
+                class ReservationResource <<(R, #F0F8FF) Resource>> {
+                    + reservationId: Long
+                    + tenantId: Long
+                    + resourceType: String
+                    + resourceId: Long
+                    + start: LocalDateTime
+                    + end: LocalDateTime
+                }
+                class TeamResource <<(R, #F0F8FF) Resource>> {
+                    + teamId: Long
+                    + tenantId: Long
+                    + name: String
+                    + teamMembers: List<TeamMember>
+                }
+                class ZoneResource <<(R, #F0F8FF) Resource>> {
+                    + zoneId: Long
+                    + tenantId: Long
+                    + name: String
+                    + locations: List<Location>
+                }
+            }
+            package "transform" {
+                class CreateEmployeeCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateEmployeeResource): CreateEmployeeCommand
+                }
+                class CreateEquipmentCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateEquipmentResource): CreateEquipmentCommand
+                }
+                class CreatePositionCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreatePositionResource): CreatePositionCommand
+                }
+                class CreateReservationCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateReservationResource): CreateReservationCommand
+                }
+                class CreateTeamCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateTeamResource): CreateTeamCommand
+                }
+                class CreateZoneCommandFromResourceAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toCommandFromResource(CreateZoneResource): CreateZoneCommand
+                }
+                class EmployeeResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Employee): EmployeeResource
+                }
+                class EquipmentResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Equipment): EquipmentResource
+                }
+                class PositionResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Position): PositionResource
+                }
+                class ReservationResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Reservation): ReservationResource
+                }
+                class TeamResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Team): TeamResource
+                }
+                class ZoneResourceFromEntityAssembler <<(T, #F0FFF0) Assembler>> {
+                    + static toResourceFromEntity(Zone): ZoneResource
+                }
+            }
+        }
+    }
+}
+
+abstract class AuditableAbstractAggregateRoot<T> {
+    + getId(): Long
+}
+
+
+EmployeeCommandServiceImpl ..|> EmployeeCommandService
+EquipmentCommandServiceImpl ..|> EquipmentCommandService
+PositionCommandServiceImpl ..|> PositionCommandService
+ReservationCommandServiceImpl ..|> ReservationCommandService
+TeamCommandServiceImpl ..|> TeamCommandService
+ZoneCommandServiceImpl ..|> ZoneCommandService
+
+EmployeeQueryServiceImpl ..|> EmployeeQueryService
+EquipmentQueryServiceImpl ..|> EquipmentQueryService
+PositionQueryServiceImpl ..|> PositionQueryService
+ReservationQueryServiceImpl ..|> ReservationQueryService
+TeamQueryServiceImpl ..|> TeamQueryService
+ZoneQueryServiceImpl ..|> ZoneQueryService
+
+EmployeeCommandServiceImpl --> EmployeeRepository
+EquipmentCommandServiceImpl --> EquipmentRepository
+PositionCommandServiceImpl --> PositionRepository
+ReservationCommandServiceImpl --> ReservationRepository
+TeamCommandServiceImpl --> TeamRepository
+ZoneCommandServiceImpl --> ZoneRepository
+
+EmployeeQueryServiceImpl --> EmployeeRepository
+EquipmentQueryServiceImpl --> EquipmentRepository
+PositionQueryServiceImpl --> PositionRepository
+ReservationQueryServiceImpl --> ReservationRepository
+TeamQueryServiceImpl --> TeamRepository
+ZoneQueryServiceImpl --> ZoneRepository
+
+Employee --* TenantId
+Employee --* FullName
+Employee --* ContactInfo
+Employee --* Availability
+Equipment --* TenantId
+Equipment --* Capacity
+Equipment --* Availability
+Position --* TenantId
+Reservation --* TenantId
+Reservation --* ResourceReference
+Reservation --* TimeInterval
+Team --* TenantId
+Team --* TeamMember
+Zone --* TenantId
+Zone --* Location
+
+Team "1" o-- "0..*" TeamMember : teamMembers >
+Zone "1" o-- "0..*" Location : locationsList >
+Location "1" *-- "1" Address
+Location "1" *-- "1" Coordinates
+
+CreateEmployeeCommand ..> FullName
+CreateEmployeeCommand ..> ContactInfo
+CreateEmployeeCommand ..> Availability
+CreateEquipmentCommand ..> Capacity
+CreateEquipmentCommand ..> Availability
+CreatePositionCommand ..> TenantId
+CreateReservationCommand ..> ResourceType
+CreateReservationCommand ..> TenantId
+CreateReservationCommand ..> ResourceReference
+CreateReservationCommand ..> TimeInterval
+CreateTeamCommand ..> TenantId
+CreateTeamCommand ..> TeamMember
+CreateZoneCommand ..> TenantId
+CreateZoneCommand ..> Location
+
+GetEmployeeByIdQuery ..> Employee
+GetEquipmentByIdQuery ..> Equipment
+GetPositionByIdQuery ..> Position
+GetReservationByIdQuery ..> Reservation
+GetReservationsByResourceReference ..> ResourceReference
+GetTeamByIdQuery ..> Team
+GetZoneByIdQuery ..> Zone
+
+EmployeeRepository ..> Employee
+EmployeeRepository ..> FullName
+EquipmentRepository ..> Equipment
+PositionRepository ..> Position
+ReservationRepository ..> Reservation
+ReservationRepository ..> ResourceReference
+TeamRepository ..> Team
+ZoneRepository ..> Zone
+
+Employee --|> AuditableAbstractAggregateRoot
+Equipment --|> AuditableAbstractAggregateRoot
+Position --|> AuditableAbstractAggregateRoot
+Reservation --|> AuditableAbstractAggregateRoot
+Team --|> AuditableAbstractAggregateRoot
+Zone --|> AuditableAbstractAggregateRoot
+
+EmployeeController --> EmployeeCommandService
+EmployeeController --> EmployeeQueryService
+EmployeeController ..> CreateEmployeeResource
+EmployeeController ..> EmployeeResource
+EmployeeController ..> CreateEmployeeCommandFromResourceAssembler
+EmployeeController ..> EmployeeResourceFromEntityAssembler
+EmployeeController ..> GetEmployeeByIdQuery
+EmployeeController ..> GetAllEmployeesQuery
+
+EquipmentController --> EquipmentCommandService
+EquipmentController --> EquipmentQueryService
+EquipmentController ..> CreateEquipmentResource
+EquipmentController ..> EquipmentResource
+EquipmentController ..> CreateEquipmentCommandFromResourceAssembler
+EquipmentController ..> EquipmentResourceFromEntityAssembler
+EquipmentController ..> GetEquipmentByIdQuery
+EquipmentController ..> GetAllEquipmentsQuery
+
+PositionController --> PositionCommandService
+PositionController --> PositionQueryService
+PositionController ..> CreatePositionResource
+PositionController ..> PositionResource
+PositionController ..> CreatePositionCommandFromResourceAssembler
+PositionController ..> PositionResourceFromEntityAssembler
+PositionController ..> GetPositionByIdQuery
+PositionController ..> GetAllPositionsQuery
+
+ReservationController --> ReservationCommandService
+ReservationController --> ReservationQueryService
+ReservationController ..> CreateReservationResource
+ReservationController ..> ReservationResource
+ReservationController ..> CreateReservationCommandFromResourceAssembler
+ReservationController ..> ReservationResourceFromEntityAssembler
+ReservationController ..> GetReservationByIdQuery
+ReservationController ..> GetReservationsByResourceReference
+
+TeamController --> TeamCommandService
+TeamController --> TeamQueryService
+TeamController ..> CreateTeamResource
+TeamController ..> TeamResource
+TeamController ..> CreateTeamCommandFromResourceAssembler
+TeamController ..> TeamResourceFromEntityAssembler
+TeamController ..> GetTeamByIdQuery
+TeamController ..> GetAllTeamsQuery
+
+ZoneController --> ZoneCommandService
+ZoneController --> ZoneQueryService
+ZoneController ..> CreateZoneResource
+ZoneController ..> ZoneResource
+ZoneController ..> CreateZoneCommandFromResourceAssembler
+ZoneController ..> ZoneResourceFromEntityAssembler
+ZoneController ..> GetZoneByIdQuery
+ZoneController ..> GetAllZonesQuery
+
+CreateEmployeeResource ..> CreateEmployeeCommand
+CreateEquipmentResource ..> CreateEquipmentCommand
+CreatePositionResource ..> CreatePositionCommand
+CreateReservationResource ..> CreateReservationCommand
+CreateTeamResource ..> CreateTeamCommand
+CreateZoneResource ..> CreateZoneCommand
+
+EmployeeResource ..> Employee
+EquipmentResource ..> Equipment
+PositionResource ..> Position
+ReservationResource ..> Reservation
+TeamResource ..> Team
+ZoneResource ..> Zone
+
+CreateEmployeeCommandFromResourceAssembler --> CreateEmployeeResource
+CreateEmployeeCommandFromResourceAssembler --> CreateEmployeeCommand
+
+EmployeeResourceFromEntityAssembler --> Employee
+EmployeeResourceFromEntityAssembler --> EmployeeResource
+
+CreateEquipmentCommandFromResourceAssembler --> CreateEquipmentResource
+CreateEquipmentCommandFromResourceAssembler --> CreateEquipmentCommand
+
+EquipmentResourceFromEntityAssembler --> Equipment
+EquipmentResourceFromEntityAssembler --> EquipmentResource
+
+CreatePositionCommandFromResourceAssembler --> CreatePositionResource
+CreatePositionCommandFromResourceAssembler --> CreatePositionCommand
+
+PositionResourceFromEntityAssembler --> Position
+PositionResourceFromEntityAssembler --> PositionResource
+
+CreateReservationCommandFromResourceAssembler --> CreateReservationResource
+CreateReservationCommandFromResourceAssembler --> CreateReservationCommand
+
+ReservationResourceFromEntityAssembler --> Reservation
+ReservationResourceFromEntityAssembler --> ReservationResource
+
+CreateTeamCommandFromResourceAssembler --> CreateTeamResource
+CreateTeamCommandFromResourceAssembler --> CreateTeamCommand
+
+TeamResourceFromEntityAssembler --> Team
+TeamResourceFromEntityAssembler --> TeamResource
+
+CreateZoneCommandFromResourceAssembler --> CreateZoneResource
+CreateZoneCommandFromResourceAssembler --> CreateZoneCommand
+
+ZoneResourceFromEntityAssembler --> Zone
+ZoneResourceFromEntityAssembler --> ZoneResource
+
+@enduml
